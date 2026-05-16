@@ -29,5 +29,8 @@ Thumbs.db
 .env.*
 
 # Build output
+/bin/
 /waf-server
 /waf-agent
+/server
+/agent
