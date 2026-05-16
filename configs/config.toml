@@ -1,0 +1,23 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[database]
+host = "127.0.0.1"
+port = 5432
+user = "waf"
+password = "waf"
+dbname = "waf"
+sslmode = "disable"
+max_open_conns = 25
+max_idle_conns = 5
+conn_max_lifetime = "5m"
+
+[auth]
+jwt_secret = "change-me-in-production"
+token_ttl = "24h"
+refresh_ttl = "168h"
+
+[log]
+level = "info"
+format = "json"
