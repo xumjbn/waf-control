@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS operation_logs;
+DROP TABLE IF EXISTS tokens;

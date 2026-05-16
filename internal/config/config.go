@@ -15,8 +15,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host string
-	Port int
+	Host     string
+	Port     int
+	GRPCPort int
 }
 
 type DatabaseConfig struct {
@@ -59,6 +60,7 @@ func Load(path string) (*Config, error) {
 
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
+	viper.SetDefault("server.grpc_port", 9090)
 	viper.SetDefault("database.host", "127.0.0.1")
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.sslmode", "disable")
@@ -91,8 +93,9 @@ func Load(path string) (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Host: viper.GetString("server.host"),
-			Port: viper.GetInt("server.port"),
+			Host:     viper.GetString("server.host"),
+			Port:     viper.GetInt("server.port"),
+			GRPCPort: viper.GetInt("server.grpc_port"),
 		},
 		Database: DatabaseConfig{
 			Host:            viper.GetString("database.host"),

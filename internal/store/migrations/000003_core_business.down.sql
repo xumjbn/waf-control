@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS policy_change_history;
+DROP TABLE IF EXISTS policy_rules;
+DROP TABLE IF EXISTS policies;
+DROP TABLE IF EXISTS policy_categories;
+DROP TABLE IF EXISTS protect_assoc;
+DROP TABLE IF EXISTS sites;
+DROP TABLE IF EXISTS network_routes;
+DROP TABLE IF EXISTS network_bonds;
+DROP TABLE IF EXISTS network_bridges;
+DROP TABLE IF EXISTS node_interfaces;
+DROP TABLE IF EXISTS nodes;
+DROP TABLE IF EXISTS devices;

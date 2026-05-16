@@ -1,4 +1,4 @@
-.PHONY: build server agent clean test lint migrate-up migrate-down
+.PHONY: build server agent clean test lint migrate-up migrate-down generate
 
 BIN_DIR := ./bin
 SERVER_BIN := $(BIN_DIR)/waf-server
@@ -18,8 +18,16 @@ clean:
 test:
 	go test ./... -v -count=1
 
+test-integration:
+	go test ./tests/... -v -count=1
+
 lint:
 	go vet ./...
+
+generate:
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		proto/agent/agent.proto
 
 migrate-up:
 	migrate -path internal/store/migrations -database "$(DATABASE_URL)" up

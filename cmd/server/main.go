@@ -10,9 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/waf-backend/internal/config"
-	"github.com/waf-backend/internal/server"
-	"github.com/waf-backend/internal/store"
+	"github.com/waf-control/internal/agent"
+	"github.com/waf-control/internal/config"
+	"github.com/waf-control/internal/server"
+	"github.com/waf-control/internal/store"
 )
 
 func main() {
@@ -57,11 +58,24 @@ func main() {
 		}
 	}()
 
+	var grpcSrv *agent.Server
+	if pool != nil && cfg.Server.GRPCPort > 0 {
+		grpcSrv = agent.NewServer(pool, cfg.Server.GRPCPort)
+		go func() {
+			if err := grpcSrv.Start(); err != nil {
+				slog.Error("grpc server failed", "error", err)
+			}
+		}()
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	slog.Info("shutting down server")
+	if grpcSrv != nil {
+		grpcSrv.Stop()
+	}
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 

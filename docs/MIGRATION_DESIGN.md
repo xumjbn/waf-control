@@ -29,7 +29,7 @@
 
 ### 2.3 25 个 API 模块清单
 
-identity, asgs, protect_sites, policies, lb, node, network, acl, ha, security, license, system, upgrade, autoscaling, asgpool, failover, reports, logs/attack, logs/operate, logs/flow, logs/antivirus, logs/antitamper, monitor/attack, monitor/system, appident
+identity, devices, protect_sites, policies, loadbalance, node, network, acl, ha, security, license, system, upgrade, autoscaling, devicepool, failover, reports, logs/attack, logs/operate, logs/flow, logs/antivirus, logs/antitamper, monitor/attack, monitor/system, appident
 
 ## 3. 存储层变更分析
 
@@ -108,14 +108,14 @@ identity, asgs, protect_sites, policies, lb, node, network, acl, ha, security, l
 - 密码加密（bcrypt）
 
 ### Phase 3：核心业务 API
-- ASG 设备管理
+- 设备管理（device）
 - 防护站点
 - WAF 策略（规则、分类、变更历史）
 - 节点管理
 - 网络配置（接口、网桥、bond、路由）
 
 ### Phase 4：辅助业务 API
-- 负载均衡（VIP、Pool、Health Monitor）
+- 负载均衡 loadbalance（VIP、Pool、Health Monitor）
 - ACL 策略
 - HA 集群
 - 系统设置、升级、License
@@ -150,10 +150,10 @@ heartbeats                      -- 心跳记录
 
 ### 原 MySQL 业务表（直接迁移）
 ```sql
-asgs, sites, protect_assoc
+devices, sites, protect_assoc
 policies, policy_rules, policy_categories, policy_change_history
-lb_vips, lb_pools, lb_members, lb_health_monitors
-asg_pools, asg_autoscaling
+loadbalance_vips, loadbalance_pools, loadbalance_members, loadbalance_health_monitors
+device_pools, device_autoscaling
 operation_logs
 ```
 

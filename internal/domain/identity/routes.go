@@ -1,53 +1,44 @@
 package identity
 
 import (
-	"net/http"
-
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/config"
 )
 
-func RegisterRoutes(r chi.Router) {
+func RegisterRoutes(r chi.Router, pool *pgxpool.Pool, cfg config.AuthConfig) *Service {
+	repo := NewRepository(pool)
+	svc := NewService(repo, cfg)
+	h := NewHandler(svc)
+
 	r.Route("/identity", func(r chi.Router) {
-		r.Post("/login", loginHandler)
-		r.Post("/logout", logoutHandler)
-		r.Get("/me", meHandler)
+		r.Post("/login", h.Login)
+		r.Post("/logout", h.Logout)
 
-		r.Route("/users", func(r chi.Router) {
-			r.Get("/", listUsersHandler)
-			r.Post("/", createUserHandler)
-			r.Get("/{id}", getUserHandler)
-			r.Put("/{id}", updateUserHandler)
-			r.Delete("/{id}", deleteUserHandler)
-		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware(svc))
+			r.Get("/me", h.Me)
 
-		r.Route("/roles", func(r chi.Router) {
-			r.Get("/", listRolesHandler)
-			r.Post("/", createRoleHandler)
-			r.Get("/{id}", getRoleHandler)
-			r.Put("/{id}", updateRoleHandler)
-			r.Delete("/{id}", deleteRoleHandler)
+			r.Route("/users", func(r chi.Router) {
+				r.Use(requireRole("admin"))
+				r.Get("/", h.ListUsers)
+				r.Post("/", h.CreateUser)
+				r.Get("/{id}", h.GetUser)
+				r.Put("/{id}", h.UpdateUser)
+				r.Delete("/{id}", h.DeleteUser)
+			})
+
+			r.Route("/roles", func(r chi.Router) {
+				r.Use(requireRole("admin"))
+				r.Get("/", h.ListRoles)
+				r.Post("/", h.CreateRole)
+				r.Get("/{id}", h.GetRole)
+				r.Put("/{id}", h.UpdateRole)
+				r.Delete("/{id}", h.DeleteRole)
+			})
 		})
 	})
-}
 
-func placeholder(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"error":"not implemented"}`))
+	return svc
 }
-
-var (
-	loginHandler       = placeholder
-	logoutHandler      = placeholder
-	meHandler          = placeholder
-	listUsersHandler   = placeholder
-	createUserHandler  = placeholder
-	getUserHandler     = placeholder
-	updateUserHandler  = placeholder
-	deleteUserHandler  = placeholder
-	listRolesHandler   = placeholder
-	createRoleHandler  = placeholder
-	getRoleHandler     = placeholder
-	updateRoleHandler  = placeholder
-	deleteRoleHandler  = placeholder
-)

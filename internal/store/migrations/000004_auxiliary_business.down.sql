@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS heartbeats;
+DROP TABLE IF EXISTS antitamper_logs;
+DROP TABLE IF EXISTS antivirus_logs;
+DROP TABLE IF EXISTS attack_logs;
+DROP TABLE IF EXISTS system_upgrades;
+DROP TABLE IF EXISTS licenses;
+DROP TABLE IF EXISTS system_settings;
+DROP TABLE IF EXISTS ha_config;
+DROP TABLE IF EXISTS acl_rules;
+DROP TABLE IF EXISTS lb_health_monitors;
+DROP TABLE IF EXISTS lb_members;
+ALTER TABLE lb_vips DROP CONSTRAINT IF EXISTS fk_vip_pool;
+DROP TABLE IF EXISTS lb_vips;
+DROP TABLE IF EXISTS lb_pools;
