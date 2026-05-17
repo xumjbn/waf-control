@@ -7,7 +7,7 @@
 | 原系统组件 | 语言 | 功能 |
 |---|---|---|
 | system-service/managerd | Go (gorilla/mux) | 管理平面 API，25 个业务模块 |
-| asg-service | Python 2.7 | 节点级 agent（心跳、监控、bypass、网络配置） |
+| instance-service | Python 2.7 | 节点级 agent（心跳、监控、bypass、网络配置） |
 
 ## 2. 原系统架构分析
 
@@ -21,7 +21,7 @@
   - etcd：配置 + 认证 + 节点信息
   - Elasticsearch：日志查询（攻击日志、流量日志）
 
-### 2.2 asg-service 架构
+### 2.2 instance-service 架构
 
 - **通信**：RabbitMQ RPC（管理端调用 agent 执行命令）
 - **心跳**：etcd lease 续期，lease 到期 = 节点离线

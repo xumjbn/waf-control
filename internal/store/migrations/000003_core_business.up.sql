@@ -1,4 +1,4 @@
--- devices (设备/ASG)
+-- devices (设备/实例)
 CREATE TABLE IF NOT EXISTS devices (
     id          BIGSERIAL PRIMARY KEY,
     name        VARCHAR(128) NOT NULL UNIQUE,
