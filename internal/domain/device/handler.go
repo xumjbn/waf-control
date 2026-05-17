@@ -17,6 +17,19 @@ func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
 }
 
+// List godoc
+// @Summary 获取设备列表
+// @Description 分页获取设备列表，支持按状态和关键词筛选
+// @Tags 设备管理
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码，默认 1"
+// @Param page_size query int false "每页数量，默认 20，最大 100"
+// @Param status query string false "设备状态筛选"
+// @Param search query string false "搜索关键词"
+// @Success 200 {object} map[string]interface{} "设备列表（含 data、total、page、size）"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /devices [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
@@ -49,6 +62,17 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Get godoc
+// @Summary 获取设备详情
+// @Description 根据设备 ID 获取设备详细信息
+// @Tags 设备管理
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备 ID"
+// @Success 200 {object} Device "设备详情"
+// @Failure 400 {object} map[string]string "无效的设备 ID"
+// @Failure 404 {object} map[string]string "设备不存在"
+// @Router /devices/{id} [get]
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -65,6 +89,18 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, d)
 }
 
+// Create godoc
+// @Summary 创建设备
+// @Description 创建新的 WAF 设备记录
+// @Tags 设备管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateRequest true "创建设备请求"
+// @Success 201 {object} Device "创建成功的设备"
+// @Failure 400 {object} map[string]string "请求参数错误"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /devices [post]
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -86,6 +122,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, d)
 }
 
+// Update godoc
+// @Summary 更新设备
+// @Description 根据设备 ID 更新设备信息
+// @Tags 设备管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备 ID"
+// @Param body body UpdateRequest true "更新设备请求"
+// @Success 200 {object} Device "更新后的设备"
+// @Failure 400 {object} map[string]string "请求参数错误"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /devices/{id} [put]
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -109,6 +158,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, d)
 }
 
+// Delete godoc
+// @Summary 删除设备
+// @Description 根据设备 ID 删除设备记录
+// @Tags 设备管理
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备 ID"
+// @Success 200 {object} map[string]string "删除成功"
+// @Failure 400 {object} map[string]string "无效的设备 ID"
+// @Failure 404 {object} map[string]string "设备不存在"
+// @Router /devices/{id} [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {

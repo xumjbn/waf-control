@@ -111,6 +111,103 @@ func (r *Repository) ListAntitamperLogs(ctx context.Context, q LogQuery) ([]Anti
 	return logs, total, nil
 }
 
+// --- Attack log sub-endpoints ---
+
+func (r *Repository) GetAttackLog(ctx context.Context, id int64) (*AttackLog, error) {
+	var l AttackLog
+	err := r.pool.QueryRow(ctx, `SELECT id, node_id, COALESCE(src_ip,''), COALESCE(dst_ip,''), src_port, dst_port,
+		COALESCE(protocol,''), COALESCE(attack_type,''), COALESCE(rule_id,''), COALESCE(action,''),
+		COALESCE(payload,''), occurred_at FROM attack_logs WHERE id = $1`, id).Scan(
+		&l.ID, &l.NodeID, &l.SrcIP, &l.DstIP, &l.SrcPort, &l.DstPort,
+		&l.Protocol, &l.AttackType, &l.RuleID, &l.Action, &l.Payload, &l.OccurredAt)
+	if err != nil {
+		return nil, fmt.Errorf("get attack log: %w", err)
+	}
+	return &l, nil
+}
+
+func (r *Repository) CountAttackLogs(ctx context.Context, q LogQuery) (int64, error) {
+	where, args := buildWhere(q)
+	var total int64
+	if err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM attack_logs"+where, args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count attack logs: %w", err)
+	}
+	return total, nil
+}
+
+func (r *Repository) ClearAttackLogs(ctx context.Context) error {
+	tag, err := r.pool.Exec(ctx, "DELETE FROM attack_logs")
+	if err != nil {
+		return fmt.Errorf("clear attack logs: %w", err)
+	}
+	_ = tag.RowsAffected()
+	return nil
+}
+
+// --- Antivirus log sub-endpoints ---
+
+func (r *Repository) GetAntivirusLog(ctx context.Context, id int64) (*AntivirusLog, error) {
+	var l AntivirusLog
+	err := r.pool.QueryRow(ctx, `SELECT id, node_id, COALESCE(file_name,''), COALESCE(virus_name,''),
+		COALESCE(file_path,''), COALESCE(action,''), COALESCE(src_ip,''), occurred_at
+		FROM antivirus_logs WHERE id = $1`, id).Scan(
+		&l.ID, &l.NodeID, &l.FileName, &l.VirusName, &l.FilePath, &l.Action, &l.SrcIP, &l.OccurredAt)
+	if err != nil {
+		return nil, fmt.Errorf("get antivirus log: %w", err)
+	}
+	return &l, nil
+}
+
+func (r *Repository) CountAntivirusLogs(ctx context.Context, q LogQuery) (int64, error) {
+	where, args := buildWhere(q)
+	var total int64
+	if err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM antivirus_logs"+where, args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count antivirus logs: %w", err)
+	}
+	return total, nil
+}
+
+func (r *Repository) ClearAntivirusLogs(ctx context.Context) error {
+	tag, err := r.pool.Exec(ctx, "DELETE FROM antivirus_logs")
+	if err != nil {
+		return fmt.Errorf("clear antivirus logs: %w", err)
+	}
+	_ = tag.RowsAffected()
+	return nil
+}
+
+// --- Antitamper log sub-endpoints ---
+
+func (r *Repository) GetAntitamperLog(ctx context.Context, id int64) (*AntitamperLog, error) {
+	var l AntitamperLog
+	err := r.pool.QueryRow(ctx, `SELECT id, node_id, COALESCE(file_path,''), COALESCE(change_type,''),
+		COALESCE(action,''), COALESCE(detail,''), occurred_at
+		FROM antitamper_logs WHERE id = $1`, id).Scan(
+		&l.ID, &l.NodeID, &l.FilePath, &l.ChangeType, &l.Action, &l.Detail, &l.OccurredAt)
+	if err != nil {
+		return nil, fmt.Errorf("get antitamper log: %w", err)
+	}
+	return &l, nil
+}
+
+func (r *Repository) CountAntitamperLogs(ctx context.Context, q LogQuery) (int64, error) {
+	where, args := buildWhere(q)
+	var total int64
+	if err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM antitamper_logs"+where, args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count antitamper logs: %w", err)
+	}
+	return total, nil
+}
+
+func (r *Repository) ClearAntitamperLogs(ctx context.Context) error {
+	tag, err := r.pool.Exec(ctx, "DELETE FROM antitamper_logs")
+	if err != nil {
+		return fmt.Errorf("clear antitamper logs: %w", err)
+	}
+	_ = tag.RowsAffected()
+	return nil
+}
+
 func buildWhere(q LogQuery) (string, []interface{}) {
 	var conds []string
 	var args []interface{}

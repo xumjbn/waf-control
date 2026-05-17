@@ -26,6 +26,9 @@ service AgentService {
 
   // ExecuteCommand sends one-off commands from server to agent.
   rpc ExecuteCommand(CommandRequest) returns (CommandResponse);
+
+  // ReportDeployResult allows an agent to report the result of applying a config update.
+  rpc ReportDeployResult(DeployResult) returns (DeployResultResponse);
 }
 
 // --- Registration ---
@@ -174,4 +177,19 @@ message CommandResponse {
   string message = 3;
   bytes result = 4;
   int32 exit_code = 5;
+}
+
+// --- Deploy Result ---
+
+message DeployResult {
+  string node_id = 1;
+  string version = 2;
+  string type = 3;
+  bool success = 4;
+  string message = 5;
+  google.protobuf.Timestamp applied_at = 6;
+}
+
+message DeployResultResponse {
+  bool ack = 1;
 }

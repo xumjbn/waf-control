@@ -42,3 +42,32 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool, cfg config.AuthConfig) *Se
 
 	return svc
 }
+
+// RegisterV3Aliases 挂载 OpenStack Keystone v3 风格的别名路由，供前端 user 页面调用。
+// 路径：/users、/roles、/users/{id}/roles、/roles/{rid}/users/{uid}。
+// 所有路由要求 admin 角色，因此调用方必须在已应用了 AuthMiddleware 的子路由器中调用。
+func RegisterV3Aliases(r chi.Router, svc *Service) {
+	h := NewHandler(svc)
+	r.Group(func(r chi.Router) {
+		r.Use(requireRole("admin"))
+
+		r.Route("/users", func(r chi.Router) {
+			r.Get("/", h.ListUsersV3)
+			r.Post("/", h.CreateUserV3)
+			r.Get("/{id}", h.GetUserV3)
+			r.Put("/{id}", h.UpdateUserV3)
+			r.Delete("/{id}", h.DeleteUserV3)
+			r.Get("/{user_id}/roles", h.ListUserRolesV3)
+		})
+
+		r.Route("/roles", func(r chi.Router) {
+			r.Get("/", h.ListRolesV3)
+			r.Post("/", h.CreateRoleV3)
+			r.Get("/{id}", h.GetRoleV3)
+			r.Put("/{id}", h.UpdateRoleV3)
+			r.Delete("/{id}", h.DeleteRoleV3)
+			r.Put("/{role_id}/users/{user_id}", h.AssignUserRoleV3)
+			r.Delete("/{role_id}/users/{user_id}", h.RevokeUserRoleV3)
+		})
+	})
+}

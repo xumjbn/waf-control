@@ -220,6 +220,49 @@ func (r *Repository) GetUserRoles(ctx context.Context, userID int64) ([]Role, er
 	return roles, nil
 }
 
+func (r *Repository) AssignUserRole(ctx context.Context, userID, roleID int64) error {
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		userID, roleID)
+	if err != nil {
+		return fmt.Errorf("assign user role: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) RevokeUserRole(ctx context.Context, userID, roleID int64) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2`,
+		userID, roleID)
+	if err != nil {
+		return fmt.Errorf("revoke user role: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) ListUsersByRoleID(ctx context.Context, roleID int64) ([]User, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT u.id, u.username, u.email, u.real_name, u.is_active, u.created_at, u.updated_at
+		FROM users u
+		JOIN user_roles ur ON ur.user_id = u.id
+		WHERE ur.role_id = $1
+		ORDER BY u.id`, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("list users by role: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.RealName, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
 func (r *Repository) SetUserRoles(ctx context.Context, userID int64, roleIDs []int64) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {

@@ -104,6 +104,19 @@ func (s *Service) ParseAccessToken(tokenStr string) (*Claims, error) {
 	return claims, nil
 }
 
+// GetUserByID 实现 project.UserLister 接口，返回 v3 风格的用户对象作为 any。
+// 用于跨包传递时避免对 identity 内部类型的直接依赖。
+func (s *Service) GetUserByID(ctx context.Context, id int64) (any, error) {
+	u, err := s.repo.GetUserByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u == nil {
+		return nil, nil
+	}
+	return toUserV3(u), nil
+}
+
 func (s *Service) GetUserWithRoles(ctx context.Context, userID int64) (*User, error) {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {

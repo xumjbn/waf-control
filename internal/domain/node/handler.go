@@ -17,6 +17,21 @@ func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
 }
 
+// List godoc
+// @Summary 获取节点列表
+// @Description 分页查询节点列表，支持按设备ID、状态和关键字筛选
+// @Tags 节点管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Param device_id query int false "设备 ID 筛选"
+// @Param status query string false "状态筛选"
+// @Param search query string false "搜索关键字"
+// @Success 200 {object} map[string]interface{} "节点列表，包含 data、total、page、size 字段"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /nodes [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
@@ -55,6 +70,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Get godoc
+// @Summary 获取节点详情
+// @Description 根据节点 ID 获取节点详细信息
+// @Tags 节点管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "节点 ID"
+// @Success 200 {object} Node "节点详情"
+// @Failure 400 {object} map[string]string "请求参数错误"
+// @Failure 404 {object} map[string]string "节点不存在"
+// @Router /nodes/{id} [get]
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -71,6 +98,18 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, n)
 }
 
+// Create godoc
+// @Summary 创建节点
+// @Description 创建新的 WAF 节点，需提供节点名称和 IP 地址
+// @Tags 节点管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateRequest true "节点创建参数"
+// @Success 201 {object} Node "创建成功"
+// @Failure 400 {object} map[string]string "请求参数错误"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /nodes [post]
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -92,6 +131,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, n)
 }
 
+// Update godoc
+// @Summary 更新节点
+// @Description 根据节点 ID 更新节点信息，支持部分字段更新
+// @Tags 节点管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "节点 ID"
+// @Param body body UpdateRequest true "节点更新参数"
+// @Success 200 {object} Node "更新成功"
+// @Failure 400 {object} map[string]string "请求参数错误"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /nodes/{id} [put]
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -115,6 +167,18 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, n)
 }
 
+// Delete godoc
+// @Summary 删除节点
+// @Description 根据节点 ID 删除节点
+// @Tags 节点管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "节点 ID"
+// @Success 200 {object} map[string]string "删除成功"
+// @Failure 400 {object} map[string]string "请求参数错误"
+// @Failure 404 {object} map[string]string "节点不存在"
+// @Router /nodes/{id} [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {

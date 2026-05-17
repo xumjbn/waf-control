@@ -14,7 +14,28 @@ import (
 	"github.com/waf-control/internal/config"
 	"github.com/waf-control/internal/server"
 	"github.com/waf-control/internal/store"
+
+	_ "github.com/waf-control/docs"
 )
+
+// @title WAF Control API
+// @version 1.0
+// @description WAF 防火墙管理系统控制面 API 接口文档
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API 支持
+// @contact.email support@example.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description 输入 Bearer {token} 格式的 JWT 令牌
 
 func main() {
 	configPath := flag.String("config", "configs/config.toml", "path to config file")
@@ -40,7 +61,17 @@ func main() {
 		defer pool.Close()
 	}
 
-	srv := server.New(cfg, pool)
+	var grpcSrv *agent.Server
+	if pool != nil && cfg.Server.GRPCPort > 0 {
+		grpcSrv = agent.NewServer(pool, cfg.Server.GRPCPort)
+		go func() {
+			if err := grpcSrv.Start(); err != nil {
+				slog.Error("grpc server failed", "error", err)
+			}
+		}()
+	}
+
+	srv := server.New(cfg, pool, grpcSrv)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Server.Addr(),
@@ -57,16 +88,6 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-
-	var grpcSrv *agent.Server
-	if pool != nil && cfg.Server.GRPCPort > 0 {
-		grpcSrv = agent.NewServer(pool, cfg.Server.GRPCPort)
-		go func() {
-			if err := grpcSrv.Start(); err != nil {
-				slog.Error("grpc server failed", "error", err)
-			}
-		}()
-	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

@@ -44,6 +44,13 @@ type UpdateRequest struct {
 	AgentVer  *string `json:"agent_ver"`
 }
 
+type NodeBrief struct {
+	ID       int64  `json:"id"`
+	DeviceID *int64 `json:"device_id,omitempty"`
+	Hostname string `json:"hostname"`
+	IPAddr   string `json:"ip_address"`
+}
+
 type ListParams struct {
 	Page     int
 	PageSize int

@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -15,6 +17,21 @@ func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
 }
 
+// ListAttackLogs godoc
+// @Summary 获取攻击日志列表
+// @Description 分页查询攻击日志，支持按节点、时间范围筛选
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param node_id query int false "节点ID"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} map[string]interface{} "攻击日志列表"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/attack [get]
 func (h *Handler) ListAttackLogs(w http.ResponseWriter, r *http.Request) {
 	q := parseLogQuery(r)
 	logs, total, err := h.repo.ListAttackLogs(r.Context(), q)
@@ -26,6 +43,21 @@ func (h *Handler) ListAttackLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"data": logs, "total": total, "page": q.Page, "page_size": q.PageSize})
 }
 
+// ListAntivirusLogs godoc
+// @Summary 获取防病毒日志列表
+// @Description 分页查询防病毒日志，支持按节点、时间范围筛选
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param node_id query int false "节点ID"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} map[string]interface{} "防病毒日志列表"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/antivirus [get]
 func (h *Handler) ListAntivirusLogs(w http.ResponseWriter, r *http.Request) {
 	q := parseLogQuery(r)
 	logs, total, err := h.repo.ListAntivirusLogs(r.Context(), q)
@@ -37,6 +69,21 @@ func (h *Handler) ListAntivirusLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"data": logs, "total": total, "page": q.Page, "page_size": q.PageSize})
 }
 
+// ListAntitamperLogs godoc
+// @Summary 获取防篡改日志列表
+// @Description 分页查询防篡改日志，支持按节点、时间范围筛选
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param node_id query int false "节点ID"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} map[string]interface{} "防篡改日志列表"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/antitamper [get]
 func (h *Handler) ListAntitamperLogs(w http.ResponseWriter, r *http.Request) {
 	q := parseLogQuery(r)
 	logs, total, err := h.repo.ListAntitamperLogs(r.Context(), q)
@@ -46,6 +93,219 @@ func (h *Handler) ListAntitamperLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"data": logs, "total": total, "page": q.Page, "page_size": q.PageSize})
+}
+
+// --- Attack log sub-endpoints ---
+
+// GetAttackLog godoc
+// @Summary 获取攻击日志详情
+// @Description 根据ID获取单条攻击日志详情
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "攻击日志ID"
+// @Success 200 {object} map[string]interface{} "攻击日志详情"
+// @Failure 400 {object} map[string]string "无效的ID"
+// @Failure 404 {object} map[string]string "攻击日志不存在"
+// @Router /logs/attack/{id} [get]
+func (h *Handler) GetAttackLog(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	logEntry, err := h.repo.GetAttackLog(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "attack log not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, logEntry)
+}
+
+// CountAttackLogs godoc
+// @Summary 统计攻击日志数量
+// @Description 根据筛选条件统计攻击日志总数
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param node_id query int false "节点ID"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Success 200 {object} map[string]int64 "攻击日志总数"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/attack/count [get]
+func (h *Handler) CountAttackLogs(w http.ResponseWriter, r *http.Request) {
+	q := parseLogQuery(r)
+	total, err := h.repo.CountAttackLogs(r.Context(), q)
+	if err != nil {
+		slog.Error("count attack logs failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"total": total})
+}
+
+// ClearAttackLogs godoc
+// @Summary 清空攻击日志
+// @Description 删除所有攻击日志记录
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "清空成功"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/attack [delete]
+func (h *Handler) ClearAttackLogs(w http.ResponseWriter, r *http.Request) {
+	if err := h.repo.ClearAttackLogs(r.Context()); err != nil {
+		slog.Error("clear attack logs failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "cleared"})
+}
+
+// --- Antivirus log sub-endpoints ---
+
+// GetAntivirusLog godoc
+// @Summary 获取防病毒日志详情
+// @Description 根据ID获取单条防病毒日志详情
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "防病毒日志ID"
+// @Success 200 {object} map[string]interface{} "防病毒日志详情"
+// @Failure 400 {object} map[string]string "无效的ID"
+// @Failure 404 {object} map[string]string "防病毒日志不存在"
+// @Router /logs/antivirus/{id} [get]
+func (h *Handler) GetAntivirusLog(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	logEntry, err := h.repo.GetAntivirusLog(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "antivirus log not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, logEntry)
+}
+
+// CountAntivirusLogs godoc
+// @Summary 统计防病毒日志数量
+// @Description 根据筛选条件统计防病毒日志总数
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param node_id query int false "节点ID"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Success 200 {object} map[string]int64 "防病毒日志总数"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/antivirus/count [get]
+func (h *Handler) CountAntivirusLogs(w http.ResponseWriter, r *http.Request) {
+	q := parseLogQuery(r)
+	total, err := h.repo.CountAntivirusLogs(r.Context(), q)
+	if err != nil {
+		slog.Error("count antivirus logs failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"total": total})
+}
+
+// ClearAntivirusLogs godoc
+// @Summary 清空防病毒日志
+// @Description 删除所有防病毒日志记录
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "清空成功"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/antivirus [delete]
+func (h *Handler) ClearAntivirusLogs(w http.ResponseWriter, r *http.Request) {
+	if err := h.repo.ClearAntivirusLogs(r.Context()); err != nil {
+		slog.Error("clear antivirus logs failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "cleared"})
+}
+
+// --- Antitamper log sub-endpoints ---
+
+// GetAntitamperLog godoc
+// @Summary 获取防篡改日志详情
+// @Description 根据ID获取单条防篡改日志详情
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "防篡改日志ID"
+// @Success 200 {object} map[string]interface{} "防篡改日志详情"
+// @Failure 400 {object} map[string]string "无效的ID"
+// @Failure 404 {object} map[string]string "防篡改日志不存在"
+// @Router /logs/antitamper/{id} [get]
+func (h *Handler) GetAntitamperLog(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	logEntry, err := h.repo.GetAntitamperLog(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "antitamper log not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, logEntry)
+}
+
+// CountAntitamperLogs godoc
+// @Summary 统计防篡改日志数量
+// @Description 根据筛选条件统计防篡改日志总数
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param node_id query int false "节点ID"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Success 200 {object} map[string]int64 "防篡改日志总数"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/antitamper/count [get]
+func (h *Handler) CountAntitamperLogs(w http.ResponseWriter, r *http.Request) {
+	q := parseLogQuery(r)
+	total, err := h.repo.CountAntitamperLogs(r.Context(), q)
+	if err != nil {
+		slog.Error("count antitamper logs failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"total": total})
+}
+
+// ClearAntitamperLogs godoc
+// @Summary 清空防篡改日志
+// @Description 删除所有防篡改日志记录
+// @Tags 日志管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "清空成功"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /logs/antitamper [delete]
+func (h *Handler) ClearAntitamperLogs(w http.ResponseWriter, r *http.Request) {
+	if err := h.repo.ClearAntitamperLogs(r.Context()); err != nil {
+		slog.Error("clear antitamper logs failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "cleared"})
 }
 
 func parseLogQuery(r *http.Request) LogQuery {

@@ -1,0 +1,7397 @@
+basePath: /api/v1
+definitions:
+  internal_domain_acl.CreateRuleRequest:
+    properties:
+      action:
+        type: string
+      description:
+        type: string
+      direction:
+        type: string
+      dst_ip:
+        type: string
+      dst_port:
+        type: integer
+      name:
+        type: string
+      priority:
+        type: integer
+      protocol:
+        type: string
+      src_ip:
+        type: string
+      src_port:
+        type: integer
+    type: object
+  internal_domain_acl.Rule:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      direction:
+        type: string
+      dst_ip:
+        type: string
+      dst_port:
+        type: integer
+      id:
+        type: integer
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      priority:
+        type: integer
+      protocol:
+        type: string
+      src_ip:
+        type: string
+      src_port:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  internal_domain_acl.UpdateRuleRequest:
+    properties:
+      action:
+        type: string
+      description:
+        type: string
+      direction:
+        type: string
+      dst_ip:
+        type: string
+      dst_port:
+        type: integer
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      priority:
+        type: integer
+      protocol:
+        type: string
+      src_ip:
+        type: string
+      src_port:
+        type: integer
+    type: object
+  internal_domain_device.CreateRequest:
+    properties:
+      description:
+        type: string
+      ip_address:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      serial_no:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_domain_device.Device:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      serial_no:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_domain_device.UpdateRequest:
+    properties:
+      description:
+        type: string
+      ip_address:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      serial_no:
+        type: string
+      status:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_domain_flow.FlowLog:
+    properties:
+      application:
+        type: string
+      bytes_received:
+        type: integer
+      bytes_sent:
+        type: integer
+      dst_ip:
+        type: string
+      dst_port:
+        type: integer
+      duration:
+        type: number
+      id:
+        type: integer
+      node_id:
+        type: integer
+      packets_received:
+        type: integer
+      packets_sent:
+        type: integer
+      protocol:
+        type: string
+      recorded_at:
+        type: string
+      src_ip:
+        type: string
+      src_port:
+        type: integer
+    type: object
+  internal_domain_flow.SavedQuery:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      query:
+        type: string
+    type: object
+  internal_domain_ha.Config:
+    properties:
+      created_at:
+        type: string
+      heartbeat_sec:
+        type: integer
+      id:
+        type: integer
+      interface:
+        type: string
+      is_enabled:
+        type: boolean
+      mode:
+        type: string
+      peer_address:
+        type: string
+      priority:
+        type: integer
+      updated_at:
+        type: string
+      virtual_ip:
+        type: string
+    type: object
+  internal_domain_ha.UpsertConfigRequest:
+    properties:
+      heartbeat_sec:
+        type: integer
+      interface:
+        type: string
+      is_enabled:
+        type: boolean
+      mode:
+        type: string
+      peer_address:
+        type: string
+      priority:
+        type: integer
+      virtual_ip:
+        type: string
+    type: object
+  internal_domain_identity.CreateRoleRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_domain_identity.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      real_name:
+        type: string
+      role_ids:
+        items:
+          type: integer
+        type: array
+      username:
+        type: string
+    type: object
+  internal_domain_identity.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_domain_identity.Role:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
+  internal_domain_identity.TokenPair:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  internal_domain_identity.UpdateRoleRequest:
+    properties:
+      description:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_domain_identity.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      is_active:
+        type: boolean
+      password:
+        type: string
+      real_name:
+        type: string
+      role_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  internal_domain_identity.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      real_name:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/internal_domain_identity.Role'
+        type: array
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_domain_loadbalance.CreateHealthMonitorRequest:
+    properties:
+      delay:
+        type: integer
+      expected_codes:
+        type: string
+      http_method:
+        type: string
+      max_retries:
+        type: integer
+      pool_id:
+        type: integer
+      timeout:
+        type: integer
+      type:
+        type: string
+      url_path:
+        type: string
+    type: object
+  internal_domain_loadbalance.CreateMemberRequest:
+    properties:
+      address:
+        type: string
+      pool_id:
+        type: integer
+      protocol_port:
+        type: integer
+      weight:
+        type: integer
+    type: object
+  internal_domain_loadbalance.CreatePoolRequest:
+    properties:
+      description:
+        type: string
+      lb_method:
+        type: string
+      name:
+        type: string
+      protocol:
+        type: string
+    type: object
+  internal_domain_loadbalance.CreateVIPRequest:
+    properties:
+      address:
+        type: string
+      connection_limit:
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+      pool_id:
+        type: integer
+      protocol:
+        type: string
+      protocol_port:
+        type: integer
+      session_persistence:
+        type: boolean
+    type: object
+  internal_domain_loadbalance.HealthMonitor:
+    properties:
+      admin_state_up:
+        type: boolean
+      created_at:
+        type: string
+      delay:
+        type: integer
+      expected_codes:
+        type: string
+      http_method:
+        type: string
+      id:
+        type: integer
+      max_retries:
+        type: integer
+      pool_id:
+        type: integer
+      timeout:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+      url_path:
+        type: string
+    type: object
+  internal_domain_loadbalance.Member:
+    properties:
+      address:
+        type: string
+      admin_state_up:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: integer
+      pool_id:
+        type: integer
+      protocol_port:
+        type: integer
+      status:
+        type: string
+      weight:
+        type: integer
+    type: object
+  internal_domain_loadbalance.Pool:
+    properties:
+      admin_state_up:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      lb_method:
+        type: string
+      name:
+        type: string
+      protocol:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_loadbalance.UpdateHealthMonitorRequest:
+    properties:
+      admin_state_up:
+        type: boolean
+      delay:
+        type: integer
+      expected_codes:
+        type: string
+      http_method:
+        type: string
+      max_retries:
+        type: integer
+      timeout:
+        type: integer
+      type:
+        type: string
+      url_path:
+        type: string
+    type: object
+  internal_domain_loadbalance.UpdateMemberRequest:
+    properties:
+      address:
+        type: string
+      admin_state_up:
+        type: boolean
+      protocol_port:
+        type: integer
+      weight:
+        type: integer
+    type: object
+  internal_domain_loadbalance.UpdatePoolRequest:
+    properties:
+      admin_state_up:
+        type: boolean
+      description:
+        type: string
+      lb_method:
+        type: string
+      name:
+        type: string
+      protocol:
+        type: string
+    type: object
+  internal_domain_loadbalance.UpdateVIPRequest:
+    properties:
+      address:
+        type: string
+      admin_state_up:
+        type: boolean
+      connection_limit:
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+      pool_id:
+        type: integer
+      protocol:
+        type: string
+      protocol_port:
+        type: integer
+      session_persistence:
+        type: boolean
+    type: object
+  internal_domain_loadbalance.VIP:
+    properties:
+      address:
+        type: string
+      admin_state_up:
+        type: boolean
+      connection_limit:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      pool_id:
+        type: integer
+      protocol:
+        type: string
+      protocol_port:
+        type: integer
+      session_persistence:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
+  internal_domain_monitor.HistoryQuery:
+    properties:
+      end_time:
+        type: string
+      interval:
+        type: string
+      metric:
+        type: string
+      node_id:
+        type: integer
+      start_time:
+        type: string
+    type: object
+  internal_domain_monitor.MetricSpec:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      unit:
+        type: string
+    type: object
+  internal_domain_monitor.RealtimeQuery:
+    properties:
+      metric:
+        type: string
+      node_id:
+        type: integer
+    type: object
+  internal_domain_network.Bond:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      mode:
+        type: string
+      name:
+        type: string
+      netmask:
+        type: string
+      node_id:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_network.Bridge:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      netmask:
+        type: string
+      node_id:
+        type: integer
+      status:
+        type: string
+      stp_enabled:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
+  internal_domain_network.CreateBondRequest:
+    properties:
+      ip_address:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      mode:
+        type: string
+      name:
+        type: string
+      netmask:
+        type: string
+      node_id:
+        type: integer
+    type: object
+  internal_domain_network.CreateBridgeRequest:
+    properties:
+      ip_address:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      netmask:
+        type: string
+      node_id:
+        type: integer
+      stp_enabled:
+        type: boolean
+    type: object
+  internal_domain_network.CreateInterfaceRequest:
+    properties:
+      bond_master:
+        type: string
+      bridge:
+        type: string
+      gateway:
+        type: string
+      iface_type:
+        type: string
+      ip_address:
+        type: string
+      mac_address:
+        type: string
+      mtu:
+        type: integer
+      name:
+        type: string
+      netmask:
+        type: string
+      node_id:
+        type: integer
+    type: object
+  internal_domain_network.CreateRouteRequest:
+    properties:
+      destination:
+        type: string
+      gateway:
+        type: string
+      interface:
+        type: string
+      metric:
+        type: integer
+      netmask:
+        type: string
+      node_id:
+        type: integer
+    type: object
+  internal_domain_network.Interface:
+    properties:
+      bond_master:
+        type: string
+      bridge:
+        type: string
+      created_at:
+        type: string
+      gateway:
+        type: string
+      id:
+        type: integer
+      iface_type:
+        type: string
+      ip_address:
+        type: string
+      mac_address:
+        type: string
+      mtu:
+        type: integer
+      name:
+        type: string
+      netmask:
+        type: string
+      node_id:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_network.Route:
+    properties:
+      created_at:
+        type: string
+      destination:
+        type: string
+      gateway:
+        type: string
+      id:
+        type: integer
+      interface:
+        type: string
+      metric:
+        type: integer
+      netmask:
+        type: string
+      node_id:
+        type: integer
+    type: object
+  internal_domain_network.SlaveRequest:
+    properties:
+      slave:
+        type: string
+    type: object
+  internal_domain_network.UpdateBondRequest:
+    properties:
+      ip_address:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      mode:
+        type: string
+      netmask:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_domain_network.UpdateBridgeRequest:
+    properties:
+      ip_address:
+        type: string
+      members:
+        items:
+          type: integer
+        type: array
+      netmask:
+        type: string
+      status:
+        type: string
+      stp_enabled:
+        type: boolean
+    type: object
+  internal_domain_network.UpdateInterfaceRequest:
+    properties:
+      gateway:
+        type: string
+      ip_address:
+        type: string
+      mtu:
+        type: integer
+      netmask:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_domain_network.UpdateRouteRequest:
+    properties:
+      destination:
+        type: string
+      gateway:
+        type: string
+      interface:
+        type: string
+      metric:
+        type: integer
+      netmask:
+        type: string
+    type: object
+  internal_domain_node.CreateRequest:
+    properties:
+      agent_ver:
+        type: string
+      cpu_cores:
+        type: integer
+      device_id:
+        type: integer
+      disk_gb:
+        type: integer
+      hostname:
+        type: string
+      ip_address:
+        type: string
+      memory_mb:
+        type: integer
+      name:
+        type: string
+      os_version:
+        type: string
+    type: object
+  internal_domain_node.Node:
+    properties:
+      agent_ver:
+        type: string
+      cpu_cores:
+        type: integer
+      created_at:
+        type: string
+      device_id:
+        type: integer
+      disk_gb:
+        type: integer
+      hostname:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      last_seen:
+        type: string
+      memory_mb:
+        type: integer
+      name:
+        type: string
+      os_version:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_node.UpdateRequest:
+    properties:
+      agent_ver:
+        type: string
+      cpu_cores:
+        type: integer
+      device_id:
+        type: integer
+      disk_gb:
+        type: integer
+      hostname:
+        type: string
+      ip_address:
+        type: string
+      memory_mb:
+        type: integer
+      name:
+        type: string
+      os_version:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_domain_policy.Category:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  internal_domain_policy.CreateCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  internal_domain_policy.CreatePolicyRequest:
+    properties:
+      action:
+        type: string
+      category_id:
+        type: integer
+      description:
+        type: string
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      severity:
+        type: string
+    type: object
+  internal_domain_policy.CreateRuleRequest:
+    properties:
+      field:
+        type: string
+      logic:
+        type: string
+      operator:
+        type: string
+      policy_id:
+        type: integer
+      rule_type:
+        type: string
+      sort_order:
+        type: integer
+      value:
+        type: string
+    type: object
+  internal_domain_policy.Policy:
+    properties:
+      action:
+        type: string
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      severity:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_policy.Rule:
+    properties:
+      created_at:
+        type: string
+      field:
+        type: string
+      id:
+        type: integer
+      logic:
+        type: string
+      operator:
+        type: string
+      policy_id:
+        type: integer
+      rule_type:
+        type: string
+      sort_order:
+        type: integer
+      value:
+        type: string
+    type: object
+  internal_domain_policy.UpdateCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  internal_domain_policy.UpdatePolicyRequest:
+    properties:
+      action:
+        type: string
+      category_id:
+        type: integer
+      description:
+        type: string
+      is_enabled:
+        type: boolean
+      name:
+        type: string
+      severity:
+        type: string
+    type: object
+  internal_domain_project.projectPayload:
+    properties:
+      description:
+        type: string
+      enabled:
+        type: boolean
+      is_domain:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+    type: object
+  internal_domain_project.projectWrapper:
+    properties:
+      project:
+        $ref: '#/definitions/internal_domain_project.projectPayload'
+    type: object
+  internal_domain_reports.CombinedReport:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      report_ids:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+    type: object
+  internal_domain_reports.CustomReport:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      filters:
+        type: string
+      id:
+        type: integer
+      metrics:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      schedule:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_reports.ManualReport:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      format:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  internal_domain_reports.TimingReport:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: integer
+      interval:
+        type: string
+      metric:
+        type: string
+      name:
+        type: string
+      start_time:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_domain_security.CreateAuthHostRequest:
+    properties:
+      description:
+        type: string
+      host:
+        type: string
+    type: object
+  internal_domain_security.UpdateAuthHostConfigRequest:
+    properties:
+      enabled:
+        type: boolean
+      lockout_duration:
+        type: integer
+      max_attempts:
+        type: integer
+    type: object
+  internal_domain_security.UpdateAuthHostRequest:
+    properties:
+      description:
+        type: string
+      host:
+        type: string
+    type: object
+  internal_domain_site.CreateRequest:
+    properties:
+      description:
+        type: string
+      domain:
+        type: string
+      listen_port:
+        type: integer
+      name:
+        type: string
+      ssl_cert:
+        type: string
+      ssl_enabled:
+        type: boolean
+      ssl_key:
+        type: string
+      upstream:
+        items:
+          type: integer
+        type: array
+      waf_enabled:
+        type: boolean
+    type: object
+  internal_domain_site.Site:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      domain:
+        type: string
+      id:
+        type: integer
+      listen_port:
+        type: integer
+      name:
+        type: string
+      ssl_cert:
+        type: string
+      ssl_enabled:
+        type: boolean
+      ssl_key:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      upstream:
+        items:
+          type: integer
+        type: array
+      waf_enabled:
+        type: boolean
+    type: object
+  internal_domain_site.UpdateRequest:
+    properties:
+      description:
+        type: string
+      domain:
+        type: string
+      listen_port:
+        type: integer
+      name:
+        type: string
+      ssl_cert:
+        type: string
+      ssl_enabled:
+        type: boolean
+      ssl_key:
+        type: string
+      status:
+        type: string
+      upstream:
+        items:
+          type: integer
+        type: array
+      waf_enabled:
+        type: boolean
+    type: object
+  internal_domain_system.CreateLicenseRequest:
+    properties:
+      expires_at:
+        type: string
+      license_key:
+        type: string
+      max_nodes:
+        type: integer
+      product_name:
+        type: string
+    type: object
+  internal_domain_system.CreateUpgradeRequest:
+    properties:
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      version:
+        type: string
+    type: object
+  internal_domain_system.UpsertSettingRequest:
+    properties:
+      category:
+        type: string
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API 支持
+  description: WAF 防火墙管理系统控制面 API 接口文档
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: WAF Control API
+  version: "1.0"
+paths:
+  /acl/rules:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有访问控制规则
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 规则列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取访问控制规则列表
+      tags:
+      - 访问控制
+    post:
+      consumes:
+      - application/json
+      description: 创建新的访问控制规则
+      parameters:
+      - description: 规则信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_acl.CreateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_acl.Rule'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建访问控制规则
+      tags:
+      - 访问控制
+  /acl/rules/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除访问控制规则
+      parameters:
+      - description: 规则ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 规则不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除访问控制规则
+      tags:
+      - 访问控制
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新访问控制规则
+      parameters:
+      - description: 规则ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_acl.UpdateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_acl.Rule'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新访问控制规则
+      tags:
+      - 访问控制
+  /devices:
+    get:
+      description: 分页获取设备列表，支持按状态和关键词筛选
+      parameters:
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      - description: 设备状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 设备列表（含 data、total、page、size）
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取设备列表
+      tags:
+      - 设备管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 WAF 设备记录
+      parameters:
+      - description: 创建设备请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_device.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功的设备
+          schema:
+            $ref: '#/definitions/internal_domain_device.Device'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建设备
+      tags:
+      - 设备管理
+  /devices/{id}:
+    delete:
+      description: 根据设备 ID 删除设备记录
+      parameters:
+      - description: 设备 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的设备 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 设备不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除设备
+      tags:
+      - 设备管理
+    get:
+      description: 根据设备 ID 获取设备详细信息
+      parameters:
+      - description: 设备 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 设备详情
+          schema:
+            $ref: '#/definitions/internal_domain_device.Device'
+        "400":
+          description: 无效的设备 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 设备不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取设备详情
+      tags:
+      - 设备管理
+    put:
+      consumes:
+      - application/json
+      description: 根据设备 ID 更新设备信息
+      parameters:
+      - description: 设备 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新设备请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_device.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的设备
+          schema:
+            $ref: '#/definitions/internal_domain_device.Device'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新设备
+      tags:
+      - 设备管理
+  /flow-logs:
+    get:
+      consumes:
+      - application/json
+      description: 根据筛选条件分页查询流量日志，支持按源IP、目标IP、协议、时间范围过滤
+      parameters:
+      - description: 源IP地址
+        in: query
+        name: src_ip
+        type: string
+      - description: 目标IP地址
+        in: query
+        name: dst_ip
+        type: string
+      - description: 协议类型
+        in: query
+        name: protocol
+        type: string
+      - description: 开始时间
+        in: query
+        name: start_at
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_at
+        type: string
+      - description: 排序字段
+        in: query
+        name: order_by
+        type: string
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 流量日志列表及总数
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 查询流量日志列表
+      tags:
+      - 流量监控
+  /flow-logs/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取流量日志详情
+      parameters:
+      - description: 流量日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 流量日志详情
+          schema:
+            $ref: '#/definitions/internal_domain_flow.FlowLog'
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 未找到
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取单条流量日志
+      tags:
+      - 流量监控
+  /flow-logs/protocols:
+    get:
+      consumes:
+      - application/json
+      description: 查询流量日志中各协议的分布情况
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 协议分布数据
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取协议分布统计
+      tags:
+      - 流量监控
+  /flow-logs/top-dst-ips:
+    get:
+      consumes:
+      - application/json
+      description: 查询流量日志中目标IP地址的Top排行
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 目标IP排行数据
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取流量目标IP排行
+      tags:
+      - 流量监控
+  /flow-logs/top-src-ips:
+    get:
+      consumes:
+      - application/json
+      description: 查询流量日志中源IP地址的Top排行
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 源IP排行数据
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取流量源IP排行
+      tags:
+      - 流量监控
+  /flow-monitor/records:
+    get:
+      consumes:
+      - application/json
+      description: 查询流量监控的汇总记录数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 流量监控记录列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取流量监控记录
+      tags:
+      - 流量监控
+  /flow-saved-queries:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有已保存的流量查询条件
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存的查询列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取保存的查询列表
+      tags:
+      - 流量监控
+    post:
+      consumes:
+      - application/json
+      description: 保存一个流量查询条件，便于后续快速复用
+      parameters:
+      - description: 查询条件（name和query必填）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_flow.SavedQuery'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_flow.SavedQuery'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建保存的查询
+      tags:
+      - 流量监控
+  /flow-saved-queries/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除已保存的流量查询条件
+      parameters:
+      - description: 保存的查询ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 删除成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 未找到
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除保存的查询
+      tags:
+      - 流量监控
+  /ha/config:
+    get:
+      consumes:
+      - application/json
+      description: 查询当前高可用集群的配置信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 高可用配置详情
+          schema:
+            $ref: '#/definitions/internal_domain_ha.Config'
+        "404":
+          description: 配置未找到
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取高可用配置
+      tags:
+      - 高可用
+    put:
+      consumes:
+      - application/json
+      description: 创建或更新高可用集群的配置，包括模式、虚拟IP、优先级等参数
+      parameters:
+      - description: 高可用配置参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_ha.UpsertConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_ha.Config'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建或更新高可用配置
+      tags:
+      - 高可用
+  /identity/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名密码进行身份认证，返回 JWT 令牌
+      parameters:
+      - description: 登录请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_identity.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 令牌对
+          schema:
+            $ref: '#/definitions/internal_domain_identity.TokenPair'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 认证失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户登录
+      tags:
+      - 认证
+  /identity/logout:
+    post:
+      consumes:
+      - application/json
+      description: 撤销刷新令牌，使当前会话失效
+      parameters:
+      - description: 登出请求，包含 refresh_token
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登出成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户登出
+      tags:
+      - 认证
+  /identity/me:
+    get:
+      description: 根据当前认证令牌获取登录用户的详细信息及角色
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 当前用户信息
+          schema:
+            $ref: '#/definitions/internal_domain_identity.User'
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 用户不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - 认证
+  /identity/roles:
+    get:
+      description: 获取系统中所有角色信息，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 角色列表
+          schema:
+            items:
+              $ref: '#/definitions/internal_domain_identity.Role'
+            type: array
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取角色列表
+      tags:
+      - 角色管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新角色并设置权限列表，需要管理员权限
+      parameters:
+      - description: 创建角色请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_identity.CreateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功的角色
+          schema:
+            $ref: '#/definitions/internal_domain_identity.Role'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建角色
+      tags:
+      - 角色管理
+  /identity/roles/{id}:
+    delete:
+      description: 根据角色 ID 删除角色，需要管理员权限
+      parameters:
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的角色 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除角色
+      tags:
+      - 角色管理
+    get:
+      description: 根据角色 ID 获取角色详细信息，需要管理员权限
+      parameters:
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 角色详情
+          schema:
+            $ref: '#/definitions/internal_domain_identity.Role'
+        "400":
+          description: 无效的角色 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 角色不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取角色详情
+      tags:
+      - 角色管理
+    put:
+      consumes:
+      - application/json
+      description: 根据角色 ID 更新角色描述和权限列表，需要管理员权限
+      parameters:
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新角色请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_identity.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的角色
+          schema:
+            $ref: '#/definitions/internal_domain_identity.Role'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 角色不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新角色
+      tags:
+      - 角色管理
+  /identity/users:
+    get:
+      description: 获取系统中所有用户及其角色信息，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户列表
+          schema:
+            items:
+              $ref: '#/definitions/internal_domain_identity.User'
+            type: array
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户并可选分配角色，需要管理员权限
+      parameters:
+      - description: 创建用户请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_identity.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功的用户
+          schema:
+            $ref: '#/definitions/internal_domain_identity.User'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户管理
+  /identity/users/{id}:
+    delete:
+      description: 根据用户 ID 删除用户，需要管理员权限
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的用户 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除用户
+      tags:
+      - 用户管理
+    get:
+      description: 根据用户 ID 获取用户详细信息及角色，需要管理员权限
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户详情
+          schema:
+            $ref: '#/definitions/internal_domain_identity.User'
+        "400":
+          description: 无效的用户 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 用户不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户详情
+      tags:
+      - 用户管理
+    put:
+      consumes:
+      - application/json
+      description: 根据用户 ID 更新用户信息（邮箱、姓名、状态、密码、角色），需要管理员权限
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_identity.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的用户
+          schema:
+            $ref: '#/definitions/internal_domain_identity.User'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 用户不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新用户
+      tags:
+      - 用户管理
+  /lb/pools:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有负载均衡资源池
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 资源池列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取资源池列表
+      tags:
+      - 负载均衡
+    post:
+      consumes:
+      - application/json
+      description: 创建新的负载均衡资源池
+      parameters:
+      - description: 资源池信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.CreatePoolRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.Pool'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建资源池
+      tags:
+      - 负载均衡
+  /lb/pools/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除负载均衡资源池
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 资源池不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除资源池
+      tags:
+      - 负载均衡
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取负载均衡资源池详细信息
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 资源池详情
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.Pool'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 资源池不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取资源池详情
+      tags:
+      - 负载均衡
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新负载均衡资源池配置
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.UpdatePoolRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.Pool'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新资源池
+      tags:
+      - 负载均衡
+  /lb/pools/{poolId}/health-monitor:
+    delete:
+      consumes:
+      - application/json
+      description: 根据资源池ID删除健康检查监控配置
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 健康检查不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除健康检查配置
+      tags:
+      - 负载均衡
+    get:
+      consumes:
+      - application/json
+      description: 根据资源池ID获取健康检查监控配置
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 健康检查配置
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.HealthMonitor'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 健康检查不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取健康检查配置
+      tags:
+      - 负载均衡
+    post:
+      consumes:
+      - application/json
+      description: 为指定资源池创建健康检查监控配置
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      - description: 健康检查配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.CreateHealthMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.HealthMonitor'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建健康检查配置
+      tags:
+      - 负载均衡
+    put:
+      consumes:
+      - application/json
+      description: 根据资源池ID更新健康检查监控配置
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.UpdateHealthMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.HealthMonitor'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新健康检查配置
+      tags:
+      - 负载均衡
+  /lb/pools/{poolId}/members:
+    get:
+      consumes:
+      - application/json
+      description: 根据资源池ID获取该池下的所有成员
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成员列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取资源池成员列表
+      tags:
+      - 负载均衡
+    post:
+      consumes:
+      - application/json
+      description: 为指定资源池添加新的后端成员
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      - description: 成员信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.CreateMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.Member'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建资源池成员
+      tags:
+      - 负载均衡
+  /lb/pools/{poolId}/members/{memberId}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据成员ID删除资源池成员
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      - description: 成员ID
+        in: path
+        name: memberId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 成员不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除资源池成员
+      tags:
+      - 负载均衡
+    get:
+      consumes:
+      - application/json
+      description: 根据成员ID获取成员详细信息
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      - description: 成员ID
+        in: path
+        name: memberId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成员详情
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.Member'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 成员不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取资源池成员详情
+      tags:
+      - 负载均衡
+    put:
+      consumes:
+      - application/json
+      description: 根据成员ID更新成员配置
+      parameters:
+      - description: 资源池ID
+        in: path
+        name: poolId
+        required: true
+        type: integer
+      - description: 成员ID
+        in: path
+        name: memberId
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.UpdateMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.Member'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新资源池成员
+      tags:
+      - 负载均衡
+  /lb/vips:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有虚拟IP地址
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: VIP列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取VIP列表
+      tags:
+      - 负载均衡
+    post:
+      consumes:
+      - application/json
+      description: 创建新的虚拟IP地址
+      parameters:
+      - description: VIP信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.CreateVIPRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.VIP'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建VIP
+      tags:
+      - 负载均衡
+  /lb/vips/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除虚拟IP地址
+      parameters:
+      - description: VIP ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: VIP不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除VIP
+      tags:
+      - 负载均衡
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取虚拟IP地址详细信息
+      parameters:
+      - description: VIP ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: VIP详情
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.VIP'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: VIP不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取VIP详情
+      tags:
+      - 负载均衡
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新虚拟IP地址配置
+      parameters:
+      - description: VIP ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_loadbalance.UpdateVIPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_loadbalance.VIP'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新VIP
+      tags:
+      - 负载均衡
+  /logs/antitamper:
+    delete:
+      consumes:
+      - application/json
+      description: 删除所有防篡改日志记录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清空成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 清空防篡改日志
+      tags:
+      - 日志管理
+    get:
+      consumes:
+      - application/json
+      description: 分页查询防篡改日志，支持按节点、时间范围筛选
+      parameters:
+      - description: 节点ID
+        in: query
+        name: node_id
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 防篡改日志列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取防篡改日志列表
+      tags:
+      - 日志管理
+  /logs/antitamper/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单条防篡改日志详情
+      parameters:
+      - description: 防篡改日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 防篡改日志详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 防篡改日志不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取防篡改日志详情
+      tags:
+      - 日志管理
+  /logs/antitamper/count:
+    get:
+      consumes:
+      - application/json
+      description: 根据筛选条件统计防篡改日志总数
+      parameters:
+      - description: 节点ID
+        in: query
+        name: node_id
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 防篡改日志总数
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 统计防篡改日志数量
+      tags:
+      - 日志管理
+  /logs/antivirus:
+    delete:
+      consumes:
+      - application/json
+      description: 删除所有防病毒日志记录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清空成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 清空防病毒日志
+      tags:
+      - 日志管理
+    get:
+      consumes:
+      - application/json
+      description: 分页查询防病毒日志，支持按节点、时间范围筛选
+      parameters:
+      - description: 节点ID
+        in: query
+        name: node_id
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 防病毒日志列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取防病毒日志列表
+      tags:
+      - 日志管理
+  /logs/antivirus/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单条防病毒日志详情
+      parameters:
+      - description: 防病毒日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 防病毒日志详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 防病毒日志不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取防病毒日志详情
+      tags:
+      - 日志管理
+  /logs/antivirus/count:
+    get:
+      consumes:
+      - application/json
+      description: 根据筛选条件统计防病毒日志总数
+      parameters:
+      - description: 节点ID
+        in: query
+        name: node_id
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 防病毒日志总数
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 统计防病毒日志数量
+      tags:
+      - 日志管理
+  /logs/attack:
+    delete:
+      consumes:
+      - application/json
+      description: 删除所有攻击日志记录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清空成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 清空攻击日志
+      tags:
+      - 日志管理
+    get:
+      consumes:
+      - application/json
+      description: 分页查询攻击日志，支持按节点、时间范围筛选
+      parameters:
+      - description: 节点ID
+        in: query
+        name: node_id
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 攻击日志列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取攻击日志列表
+      tags:
+      - 日志管理
+  /logs/attack/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单条攻击日志详情
+      parameters:
+      - description: 攻击日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 攻击日志详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 攻击日志不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取攻击日志详情
+      tags:
+      - 日志管理
+  /logs/attack/count:
+    get:
+      consumes:
+      - application/json
+      description: 根据筛选条件统计攻击日志总数
+      parameters:
+      - description: 节点ID
+        in: query
+        name: node_id
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 攻击日志总数
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 统计攻击日志数量
+      tags:
+      - 日志管理
+  /monitor/attack/severity:
+    get:
+      consumes:
+      - application/json
+      description: 查询各严重程度等级的攻击事件数量统计
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 严重程度统计数据
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取攻击严重程度统计
+      tags:
+      - 系统监控
+  /monitor/attack/src-ips-top:
+    get:
+      consumes:
+      - application/json
+      description: 查询攻击来源IP地址的Top排行
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 攻击源IP排行数据
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取攻击源IP排行
+      tags:
+      - 系统监控
+  /monitor/history:
+    put:
+      consumes:
+      - application/json
+      description: 根据节点ID、指标名称和时间范围查询历史监控数据
+      parameters:
+      - description: 历史查询参数（node_id和metric必填）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_monitor.HistoryQuery'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 历史监控数据
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 查询历史监控数据
+      tags:
+      - 系统监控
+  /monitor/metric:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有系统监控指标的当前值
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 监控指标列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取监控指标列表
+      tags:
+      - 系统监控
+  /monitor/metricspec:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有可用的监控指标规格定义
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 指标规格列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取监控指标规格列表
+      tags:
+      - 系统监控
+  /monitor/metricspec/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取监控指标规格的详细定义
+      parameters:
+      - description: 指标规格ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 指标规格详情
+          schema:
+            $ref: '#/definitions/internal_domain_monitor.MetricSpec'
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 未找到
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取单个监控指标规格
+      tags:
+      - 系统监控
+  /monitor/realtime:
+    put:
+      consumes:
+      - application/json
+      description: 根据节点ID和指标名称查询实时监控数据
+      parameters:
+      - description: 实时查询参数（node_id和metric必填）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_monitor.RealtimeQuery'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 实时监控数据
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 查询实时监控数据
+      tags:
+      - 系统监控
+  /nodes:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询节点列表，支持按设备ID、状态和关键字筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 设备 ID 筛选
+        in: query
+        name: device_id
+        type: integer
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键字
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 节点列表，包含 data、total、page、size 字段
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取节点列表
+      tags:
+      - 节点管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 WAF 节点，需提供节点名称和 IP 地址
+      parameters:
+      - description: 节点创建参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_node.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_node.Node'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建节点
+      tags:
+      - 节点管理
+  /nodes/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据节点 ID 删除节点
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 节点不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除节点
+      tags:
+      - 节点管理
+    get:
+      consumes:
+      - application/json
+      description: 根据节点 ID 获取节点详细信息
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 节点详情
+          schema:
+            $ref: '#/definitions/internal_domain_node.Node'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 节点不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取节点详情
+      tags:
+      - 节点管理
+    put:
+      consumes:
+      - application/json
+      description: 根据节点 ID 更新节点信息，支持部分字段更新
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 节点更新参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_node.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_node.Node'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新节点
+      tags:
+      - 节点管理
+  /nodes/{nodeId}/bonds:
+    get:
+      consumes:
+      - application/json
+      description: 根据节点ID获取该节点下的所有Bond接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bond列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取Bond列表
+      tags:
+      - 网络管理
+    post:
+      consumes:
+      - application/json
+      description: 为指定节点创建新的Bond接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: Bond信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.CreateBondRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bond'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建Bond接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bonds/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除Bond接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: Bond ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Bond不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除Bond接口
+      tags:
+      - 网络管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新Bond接口配置
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: Bond ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.UpdateBondRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bond'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新Bond接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bonds/{id}/slave:
+    post:
+      consumes:
+      - application/json
+      description: 为指定Bond添加从属接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: Bond ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 从接口信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.SlaveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 添加成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bond'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 添加Bond从接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bonds/{id}/slave/{slaveId}:
+    delete:
+      consumes:
+      - application/json
+      description: 从指定Bond移除从属接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: Bond ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 从接口ID
+        in: path
+        name: slaveId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bond'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 移除Bond从接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bridges:
+    get:
+      consumes:
+      - application/json
+      description: 根据节点ID获取该节点下的所有网桥
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 网桥列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取网桥列表
+      tags:
+      - 网络管理
+    post:
+      consumes:
+      - application/json
+      description: 为指定节点创建新的网桥
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 网桥信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.CreateBridgeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bridge'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建网桥
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bridges/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除网桥
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 网桥ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 网桥不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除网桥
+      tags:
+      - 网络管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新网桥配置
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 网桥ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.UpdateBridgeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bridge'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新网桥
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bridges/{id}/slave:
+    post:
+      consumes:
+      - application/json
+      description: 为指定网桥添加从属接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 网桥ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 从接口信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.SlaveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 添加成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bridge'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 添加网桥从接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/bridges/{id}/slave/{slaveId}:
+    delete:
+      consumes:
+      - application/json
+      description: 从指定网桥移除从属接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 网桥ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 从接口ID
+        in: path
+        name: slaveId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Bridge'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 移除网桥从接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/interfaces:
+    get:
+      consumes:
+      - application/json
+      description: 根据节点ID获取该节点下的所有网络接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 接口列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取网络接口列表
+      tags:
+      - 网络管理
+    post:
+      consumes:
+      - application/json
+      description: 为指定节点创建新的网络接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 接口信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.CreateInterfaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Interface'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建网络接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/interfaces/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除网络接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 接口ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 接口不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除网络接口
+      tags:
+      - 网络管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新网络接口配置
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 接口ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.UpdateInterfaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Interface'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新网络接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/interfaces/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定节点下的网络接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 接口ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 禁用成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Interface'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 禁用网络接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/interfaces/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定节点下的网络接口
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 接口ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 启用成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Interface'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 启用网络接口
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/routes:
+    get:
+      consumes:
+      - application/json
+      description: 根据节点ID获取该节点下的所有路由
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 路由列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取路由列表
+      tags:
+      - 网络管理
+    post:
+      consumes:
+      - application/json
+      description: 为指定节点创建新的路由规则
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 路由信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.CreateRouteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Route'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建路由
+      tags:
+      - 网络管理
+  /nodes/{nodeId}/routes/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除路由规则
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 路由ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 路由不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除路由
+      tags:
+      - 网络管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新路由规则配置
+      parameters:
+      - description: 节点ID
+        in: path
+        name: nodeId
+        required: true
+        type: integer
+      - description: 路由ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_network.UpdateRouteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_network.Route'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新路由
+      tags:
+      - 网络管理
+  /operation-logs:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询操作日志，支持按用户名、请求方法、路径、状态码和时间范围筛选
+      parameters:
+      - description: 用户名
+        in: query
+        name: username
+        type: string
+      - description: 请求方法
+        in: query
+        name: method
+        type: string
+      - description: 请求路径
+        in: query
+        name: path
+        type: string
+      - description: 最小状态码
+        in: query
+        name: min_code
+        type: integer
+      - description: 最大状态码
+        in: query
+        name: max_code
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_at
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_at
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作日志列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取操作日志列表
+      tags:
+      - 运维操作
+  /operation-logs/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单条操作日志详情
+      parameters:
+      - description: 操作日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作日志详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 操作日志不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取操作日志详情
+      tags:
+      - 运维操作
+  /policies:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询策略列表，支持按分类、严重级别、动作、启用状态和关键词筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 分类ID
+        in: query
+        name: category_id
+        type: integer
+      - description: 严重级别
+        in: query
+        name: severity
+        type: string
+      - description: 动作
+        in: query
+        name: action
+        type: string
+      - description: 是否启用
+        in: query
+        name: is_enabled
+        type: boolean
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 策略列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取策略列表
+      tags:
+      - 策略管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的安全策略
+      parameters:
+      - description: 策略信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_policy.CreatePolicyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_policy.Policy'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建策略
+      tags:
+      - 策略管理
+  /policies/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除策略
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 策略不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除策略
+      tags:
+      - 策略管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取策略详细信息
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 策略详情
+          schema:
+            $ref: '#/definitions/internal_domain_policy.Policy'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 策略不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取策略详情
+      tags:
+      - 策略管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新策略信息
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_policy.UpdatePolicyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_policy.Policy'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新策略
+      tags:
+      - 策略管理
+  /policies/{id}/history:
+    get:
+      consumes:
+      - application/json
+      description: 根据策略ID获取变更历史记录
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 返回数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 变更历史列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取策略变更历史
+      tags:
+      - 策略管理
+  /policies/{id}/rules:
+    get:
+      consumes:
+      - application/json
+      description: 根据策略ID获取该策略下的所有规则
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 规则列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取策略规则列表
+      tags:
+      - 策略管理
+    post:
+      consumes:
+      - application/json
+      description: 为指定策略创建新的匹配规则
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 规则信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_policy.CreateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_policy.Rule'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建策略规则
+      tags:
+      - 策略管理
+  /policies/{id}/rules/{ruleId}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据规则ID删除策略下的指定规则
+      parameters:
+      - description: 策略ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 规则ID
+        in: path
+        name: ruleId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 规则不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除策略规则
+      tags:
+      - 策略管理
+  /policy-categories:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有策略分类
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分类列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取策略分类列表
+      tags:
+      - 策略管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的策略分类
+      parameters:
+      - description: 分类信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_policy.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_policy.Category'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建策略分类
+      tags:
+      - 策略管理
+  /policy-categories/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除策略分类
+      parameters:
+      - description: 分类ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 分类不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除策略分类
+      tags:
+      - 策略管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新策略分类
+      parameters:
+      - description: 分类ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_policy.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_policy.Category'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新策略分类
+      tags:
+      - 策略管理
+  /projects:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有项目信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 项目列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目列表
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个项目
+      parameters:
+      - description: 项目信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_project.projectWrapper'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建项目
+      tags:
+      - 项目管理
+  /projects/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除项目
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 删除成功
+        "400":
+          description: 无效的项目ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除项目
+      tags:
+      - 项目管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个项目详情
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 项目详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的项目ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 项目不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目详情
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新项目信息
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 项目信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_project.projectWrapper'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 项目不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新项目
+      tags:
+      - 项目管理
+  /projects/{id}/users:
+    get:
+      consumes:
+      - application/json
+      description: 返回项目下已绑定的用户列表
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 项目用户列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的项目ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目用户列表
+      tags:
+      - 项目管理
+  /projects/{project_id}/users/{user_id}/roles/{role_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 撤销项目中用户的指定角色
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: 角色ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 撤销成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 撤销用户角色
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      description: 为项目中的用户分配指定角色
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: 角色ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 分配成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 分配用户角色
+      tags:
+      - 项目管理
+  /reports/combined:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有综合报表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 综合报表列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取综合报表列表
+      tags:
+      - 报表管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个综合报表
+      parameters:
+      - description: 综合报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.CombinedReport'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建综合报表
+      tags:
+      - 报表管理
+  /reports/combined/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除综合报表
+      parameters:
+      - description: 综合报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 删除成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除综合报表
+      tags:
+      - 报表管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个综合报表详情
+      parameters:
+      - description: 综合报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 综合报表详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取综合报表详情
+      tags:
+      - 报表管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新综合报表信息
+      parameters:
+      - description: 综合报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 综合报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.CombinedReport'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新综合报表
+      tags:
+      - 报表管理
+  /reports/combined/{id}/data:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取综合报表的统计数据
+      parameters:
+      - description: 综合报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 报表数据
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取综合报表数据
+      tags:
+      - 报表管理
+  /reports/custom:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有自定义报表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 自定义报表列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取自定义报表列表
+      tags:
+      - 报表管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个自定义报表
+      parameters:
+      - description: 自定义报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.CustomReport'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建自定义报表
+      tags:
+      - 报表管理
+  /reports/custom/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除自定义报表
+      parameters:
+      - description: 自定义报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 删除成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除自定义报表
+      tags:
+      - 报表管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个自定义报表详情
+      parameters:
+      - description: 自定义报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 自定义报表详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取自定义报表详情
+      tags:
+      - 报表管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新自定义报表信息
+      parameters:
+      - description: 自定义报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 自定义报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.CustomReport'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新自定义报表
+      tags:
+      - 报表管理
+  /reports/custom/{id}/data:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取自定义报表的统计数据
+      parameters:
+      - description: 自定义报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 报表数据
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取自定义报表数据
+      tags:
+      - 报表管理
+  /reports/manual:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有手动报表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 手动报表列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取手动报表列表
+      tags:
+      - 报表管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个手动报表
+      parameters:
+      - description: 手动报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.ManualReport'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建手动报表
+      tags:
+      - 报表管理
+  /reports/manual/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除手动报表
+      parameters:
+      - description: 手动报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 删除成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除手动报表
+      tags:
+      - 报表管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个手动报表详情
+      parameters:
+      - description: 手动报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 手动报表详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取手动报表详情
+      tags:
+      - 报表管理
+  /reports/timing:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有定时报表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 定时报表列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取定时报表列表
+      tags:
+      - 报表管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个定时报表
+      parameters:
+      - description: 定时报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.TimingReport'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建定时报表
+      tags:
+      - 报表管理
+  /reports/timing/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除定时报表
+      parameters:
+      - description: 定时报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 删除成功
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除定时报表
+      tags:
+      - 报表管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个定时报表详情
+      parameters:
+      - description: 定时报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 定时报表详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取定时报表详情
+      tags:
+      - 报表管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新定时报表信息
+      parameters:
+      - description: 定时报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 定时报表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_reports.TimingReport'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新定时报表
+      tags:
+      - 报表管理
+  /reports/timing/{id}/data:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取定时报表的统计数据
+      parameters:
+      - description: 定时报表ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 报表数据
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 报表不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取定时报表数据
+      tags:
+      - 报表管理
+  /security_management/auth_host_cfg:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前授权主机全局配置
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 授权主机配置
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 配置不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取授权主机配置
+      tags:
+      - 安全管理
+    put:
+      consumes:
+      - application/json
+      description: 更新或创建授权主机全局配置
+      parameters:
+      - description: 授权主机配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_security.UpdateAuthHostConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新授权主机配置
+      tags:
+      - 安全管理
+  /security_management/auth_hosts:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有授权主机信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 授权主机列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取授权主机列表
+      tags:
+      - 安全管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个授权主机记录
+      parameters:
+      - description: 授权主机信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_security.CreateAuthHostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建授权主机
+      tags:
+      - 安全管理
+  /security_management/auth_hosts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除授权主机
+      parameters:
+      - description: 授权主机ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 授权主机不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除授权主机
+      tags:
+      - 安全管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个授权主机详情
+      parameters:
+      - description: 授权主机ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 授权主机详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 授权主机不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取授权主机详情
+      tags:
+      - 安全管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新授权主机信息
+      parameters:
+      - description: 授权主机ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新的授权主机信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_security.UpdateAuthHostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新授权主机
+      tags:
+      - 安全管理
+  /sites:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询站点列表，支持按状态和关键字筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键字
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 站点列表，包含 data、total、page、size 字段
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取站点列表
+      tags:
+      - 站点管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的防护站点，需提供站点名称和域名
+      parameters:
+      - description: 站点创建参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_site.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/internal_domain_site.Site'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建站点
+      tags:
+      - 站点管理
+  /sites/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据站点 ID 删除站点
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 站点不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除站点
+      tags:
+      - 站点管理
+    get:
+      consumes:
+      - application/json
+      description: 根据站点 ID 获取站点详细信息
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 站点详情
+          schema:
+            $ref: '#/definitions/internal_domain_site.Site'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 站点不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取站点详情
+      tags:
+      - 站点管理
+    put:
+      consumes:
+      - application/json
+      description: 根据站点 ID 更新站点信息，支持部分字段更新
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 站点更新参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_site.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/internal_domain_site.Site'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新站点
+      tags:
+      - 站点管理
+  /sites/{id}/devices:
+    get:
+      consumes:
+      - application/json
+      description: 根据站点 ID 获取该站点绑定的所有设备 ID 列表
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 设备 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取站点绑定的设备列表
+      tags:
+      - 站点管理
+    post:
+      consumes:
+      - application/json
+      description: 将指定设备绑定到站点，建立站点与设备的关联关系
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 绑定参数
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 绑定成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 绑定设备到站点
+      tags:
+      - 站点管理
+  /sites/{id}/devices/{deviceId}:
+    delete:
+      consumes:
+      - application/json
+      description: 解除站点与指定设备的绑定关系
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 设备 ID
+        in: path
+        name: deviceId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解绑成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 解绑站点设备
+      tags:
+      - 站点管理
+  /statistic_trend/top_sites_info:
+    get:
+      consumes:
+      - application/json
+      description: 查询受攻击最多的站点Top排行
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 站点排行数据
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取攻击目标站点排行
+      tags:
+      - 系统监控
+  /system/licenses:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有许可证信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 许可证列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取许可证列表
+      tags:
+      - 系统管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个许可证记录
+      parameters:
+      - description: 许可证信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_system.CreateLicenseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建许可证
+      tags:
+      - 系统管理
+  /system/licenses/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除许可证
+      parameters:
+      - description: 许可证ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 许可证不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除许可证
+      tags:
+      - 系统管理
+  /system/licenses/{id}/activate:
+    post:
+      consumes:
+      - application/json
+      description: 根据ID激活指定许可证
+      parameters:
+      - description: 许可证ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 激活成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 许可证不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 激活许可证
+      tags:
+      - 系统管理
+  /system/query_pswd_status/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: 根据用户ID查询密码状态信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 密码状态信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 用户不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户密码状态
+      tags:
+      - 安全管理
+  /system/settings:
+    get:
+      consumes:
+      - application/json
+      description: 查询系统设置，支持按分类筛选
+      parameters:
+      - description: 设置分类
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 系统设置列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取系统设置列表
+      tags:
+      - 系统管理
+    put:
+      consumes:
+      - application/json
+      description: 根据key创建或更新系统设置项
+      parameters:
+      - description: 设置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_system.UpsertSettingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 设置详情
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建或更新系统设置
+      tags:
+      - 系统管理
+  /system/settings/{key}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据key删除系统设置项
+      parameters:
+      - description: 设置key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 设置不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除系统设置
+      tags:
+      - 系统管理
+  /system/upgrades:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有升级包信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 升级包列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取升级包列表
+      tags:
+      - 系统管理
+    post:
+      consumes:
+      - application/json
+      description: 新增一个升级包记录
+      parameters:
+      - description: 升级包信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_domain_system.CreateUpgradeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建升级包
+      tags:
+      - 系统管理
+  /system/upgrades/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除升级包
+      parameters:
+      - description: 升级包ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 无效的ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 升级包不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除升级包
+      tags:
+      - 系统管理
+  /system/upgrades/{id}/trigger:
+    post:
+      consumes:
+      - application/json
+      description: 根据ID触发系统升级操作
+      parameters:
+      - description: 升级包ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 触发成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 触发失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 触发升级
+      tags:
+      - 系统管理
+securityDefinitions:
+  BearerAuth:
+    description: 输入 Bearer {token} 格式的 JWT 令牌
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

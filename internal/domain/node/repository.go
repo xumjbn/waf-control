@@ -179,6 +179,32 @@ func (r *Repository) Update(ctx context.Context, id int64, req UpdateRequest) (*
 	return &n, nil
 }
 
+func (r *Repository) ListByDeviceID(ctx context.Context, deviceID int64) ([]NodeBrief, error) {
+	nodes, _, err := r.List(ctx, ListParams{
+		Page:     1,
+		PageSize: 100,
+		DeviceID: &deviceID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list nodes by device: %w", err)
+	}
+
+	briefs := make([]NodeBrief, len(nodes))
+	for i, n := range nodes {
+		hostname := n.Hostname
+		if hostname == "" {
+			hostname = n.Name
+		}
+		briefs[i] = NodeBrief{
+			ID:       n.ID,
+			DeviceID: n.DeviceID,
+			Hostname: hostname,
+			IPAddr:   n.IPAddress,
+		}
+	}
+	return briefs, nil
+}
+
 func (r *Repository) Delete(ctx context.Context, id int64) error {
 	tag, err := r.pool.Exec(ctx, "DELETE FROM nodes WHERE id = $1", id)
 	if err != nil {

@@ -124,3 +124,15 @@ type CreateRouteRequest struct {
 	Interface   string `json:"interface"`
 	Metric      int    `json:"metric"`
 }
+
+type UpdateRouteRequest struct {
+	Destination *string `json:"destination"`
+	Netmask     *string `json:"netmask"`
+	Gateway     *string `json:"gateway"`
+	Interface   *string `json:"interface"`
+	Metric      *int    `json:"metric"`
+}
+
+type SlaveRequest struct {
+	Slave string `json:"slave"`
+}

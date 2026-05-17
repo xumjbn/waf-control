@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -399,4 +400,244 @@ func (r *Repository) DeleteRoute(ctx context.Context, id int64) error {
 		return fmt.Errorf("route not found")
 	}
 	return nil
+}
+
+func (r *Repository) UpdateRoute(ctx context.Context, id int64, req UpdateRouteRequest) (*Route, error) {
+	var sets []string
+	var args []interface{}
+	argIdx := 1
+
+	if req.Destination != nil {
+		sets = append(sets, fmt.Sprintf("destination = $%d", argIdx))
+		args = append(args, *req.Destination)
+		argIdx++
+	}
+	if req.Netmask != nil {
+		sets = append(sets, fmt.Sprintf("netmask = $%d", argIdx))
+		args = append(args, *req.Netmask)
+		argIdx++
+	}
+	if req.Gateway != nil {
+		sets = append(sets, fmt.Sprintf("gateway = $%d", argIdx))
+		args = append(args, *req.Gateway)
+		argIdx++
+	}
+	if req.Interface != nil {
+		sets = append(sets, fmt.Sprintf("interface = $%d", argIdx))
+		args = append(args, *req.Interface)
+		argIdx++
+	}
+	if req.Metric != nil {
+		sets = append(sets, fmt.Sprintf("metric = $%d", argIdx))
+		args = append(args, *req.Metric)
+		argIdx++
+	}
+
+	if len(sets) == 0 {
+		return nil, fmt.Errorf("no fields to update")
+	}
+
+	query := fmt.Sprintf(`UPDATE network_routes SET %s WHERE id = $%d
+		RETURNING id, node_id, destination, netmask, gateway, COALESCE(interface,''), metric, created_at`,
+		strings.Join(sets, ", "), argIdx)
+	args = append(args, id)
+
+	var rt Route
+	err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&rt.ID, &rt.NodeID, &rt.Destination, &rt.Netmask, &rt.Gateway,
+		&rt.Interface, &rt.Metric, &rt.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("update route: %w", err)
+	}
+	return &rt, nil
+}
+
+// --- Interface enable/disable ---
+
+func (r *Repository) EnableInterface(ctx context.Context, nodeID, id int64) (*Interface, error) {
+	var i Interface
+	err := r.pool.QueryRow(ctx, `UPDATE node_interfaces SET status = 'up', updated_at = NOW()
+		WHERE id = $1 AND node_id = $2
+		RETURNING id, node_id, name, COALESCE(mac_address,''), COALESCE(ip_address,''),
+		COALESCE(netmask,''), COALESCE(gateway,''), mtu, status, iface_type,
+		COALESCE(bond_master,''), COALESCE(bridge,''), created_at, updated_at`, id, nodeID).Scan(
+		&i.ID, &i.NodeID, &i.Name, &i.MACAddress, &i.IPAddress,
+		&i.Netmask, &i.Gateway, &i.MTU, &i.Status, &i.IfaceType,
+		&i.BondMaster, &i.Bridge, &i.CreatedAt, &i.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("enable interface: %w", err)
+	}
+	return &i, nil
+}
+
+func (r *Repository) DisableInterface(ctx context.Context, nodeID, id int64) (*Interface, error) {
+	var i Interface
+	err := r.pool.QueryRow(ctx, `UPDATE node_interfaces SET status = 'down', updated_at = NOW()
+		WHERE id = $1 AND node_id = $2
+		RETURNING id, node_id, name, COALESCE(mac_address,''), COALESCE(ip_address,''),
+		COALESCE(netmask,''), COALESCE(gateway,''), mtu, status, iface_type,
+		COALESCE(bond_master,''), COALESCE(bridge,''), created_at, updated_at`, id, nodeID).Scan(
+		&i.ID, &i.NodeID, &i.Name, &i.MACAddress, &i.IPAddress,
+		&i.Netmask, &i.Gateway, &i.MTU, &i.Status, &i.IfaceType,
+		&i.BondMaster, &i.Bridge, &i.CreatedAt, &i.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("disable interface: %w", err)
+	}
+	return &i, nil
+}
+
+// --- Bridge slave operations ---
+
+func (r *Repository) AddBridgeSlave(ctx context.Context, id int64, slave string) (*Bridge, error) {
+	// read current members
+	var members []byte
+	err := r.pool.QueryRow(ctx, "SELECT members FROM network_bridges WHERE id = $1", id).Scan(&members)
+	if err != nil {
+		return nil, fmt.Errorf("bridge not found: %w", err)
+	}
+
+	var slaves []string
+	if len(members) > 0 {
+		json.Unmarshal(members, &slaves)
+	}
+	// dedup
+	for _, s := range slaves {
+		if s == slave {
+			return r.getBridgeByID(ctx, id)
+		}
+	}
+	slaves = append(slaves, slave)
+	newMembers, _ := json.Marshal(slaves)
+
+	var b Bridge
+	err = r.pool.QueryRow(ctx, `UPDATE network_bridges SET members = $1, updated_at = NOW() WHERE id = $2
+		RETURNING id, node_id, name, COALESCE(ip_address,''), COALESCE(netmask,''),
+		members, stp_enabled, status, created_at, updated_at`, newMembers, id).Scan(
+		&b.ID, &b.NodeID, &b.Name, &b.IPAddress, &b.Netmask,
+		&b.Members, &b.STPEnabled, &b.Status, &b.CreatedAt, &b.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("add bridge slave: %w", err)
+	}
+	return &b, nil
+}
+
+func (r *Repository) DelBridgeSlave(ctx context.Context, id int64, slave string) (*Bridge, error) {
+	var members []byte
+	err := r.pool.QueryRow(ctx, "SELECT members FROM network_bridges WHERE id = $1", id).Scan(&members)
+	if err != nil {
+		return nil, fmt.Errorf("bridge not found: %w", err)
+	}
+
+	var slaves []string
+	if len(members) > 0 {
+		json.Unmarshal(members, &slaves)
+	}
+	filtered := make([]string, 0, len(slaves))
+	for _, s := range slaves {
+		if s != slave {
+			filtered = append(filtered, s)
+		}
+	}
+	newMembers, _ := json.Marshal(filtered)
+
+	var b Bridge
+	err = r.pool.QueryRow(ctx, `UPDATE network_bridges SET members = $1, updated_at = NOW() WHERE id = $2
+		RETURNING id, node_id, name, COALESCE(ip_address,''), COALESCE(netmask,''),
+		members, stp_enabled, status, created_at, updated_at`, newMembers, id).Scan(
+		&b.ID, &b.NodeID, &b.Name, &b.IPAddress, &b.Netmask,
+		&b.Members, &b.STPEnabled, &b.Status, &b.CreatedAt, &b.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("del bridge slave: %w", err)
+	}
+	return &b, nil
+}
+
+// --- Bond slave operations ---
+
+func (r *Repository) AddBondSlave(ctx context.Context, id int64, slave string) (*Bond, error) {
+	var members []byte
+	err := r.pool.QueryRow(ctx, "SELECT members FROM network_bonds WHERE id = $1", id).Scan(&members)
+	if err != nil {
+		return nil, fmt.Errorf("bond not found: %w", err)
+	}
+
+	var slaves []string
+	if len(members) > 0 {
+		json.Unmarshal(members, &slaves)
+	}
+	for _, s := range slaves {
+		if s == slave {
+			return r.getBondByID(ctx, id)
+		}
+	}
+	slaves = append(slaves, slave)
+	newMembers, _ := json.Marshal(slaves)
+
+	var b Bond
+	err = r.pool.QueryRow(ctx, `UPDATE network_bonds SET members = $1, updated_at = NOW() WHERE id = $2
+		RETURNING id, node_id, name, mode, COALESCE(ip_address,''), COALESCE(netmask,''),
+		members, status, created_at, updated_at`, newMembers, id).Scan(
+		&b.ID, &b.NodeID, &b.Name, &b.Mode, &b.IPAddress, &b.Netmask,
+		&b.Members, &b.Status, &b.CreatedAt, &b.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("add bond slave: %w", err)
+	}
+	return &b, nil
+}
+
+func (r *Repository) DelBondSlave(ctx context.Context, id int64, slave string) (*Bond, error) {
+	var members []byte
+	err := r.pool.QueryRow(ctx, "SELECT members FROM network_bonds WHERE id = $1", id).Scan(&members)
+	if err != nil {
+		return nil, fmt.Errorf("bond not found: %w", err)
+	}
+
+	var slaves []string
+	if len(members) > 0 {
+		json.Unmarshal(members, &slaves)
+	}
+	filtered := make([]string, 0, len(slaves))
+	for _, s := range slaves {
+		if s != slave {
+			filtered = append(filtered, s)
+		}
+	}
+	newMembers, _ := json.Marshal(filtered)
+
+	var b Bond
+	err = r.pool.QueryRow(ctx, `UPDATE network_bonds SET members = $1, updated_at = NOW() WHERE id = $2
+		RETURNING id, node_id, name, mode, COALESCE(ip_address,''), COALESCE(netmask,''),
+		members, status, created_at, updated_at`, newMembers, id).Scan(
+		&b.ID, &b.NodeID, &b.Name, &b.Mode, &b.IPAddress, &b.Netmask,
+		&b.Members, &b.Status, &b.CreatedAt, &b.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("del bond slave: %w", err)
+	}
+	return &b, nil
+}
+
+func (r *Repository) getBridgeByID(ctx context.Context, id int64) (*Bridge, error) {
+	var b Bridge
+	err := r.pool.QueryRow(ctx, `SELECT id, node_id, name, COALESCE(ip_address,''), COALESCE(netmask,''),
+		members, stp_enabled, status, created_at, updated_at
+		FROM network_bridges WHERE id = $1`, id).Scan(
+		&b.ID, &b.NodeID, &b.Name, &b.IPAddress, &b.Netmask,
+		&b.Members, &b.STPEnabled, &b.Status, &b.CreatedAt, &b.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get bridge: %w", err)
+	}
+	return &b, nil
+}
+
+func (r *Repository) getBondByID(ctx context.Context, id int64) (*Bond, error) {
+	var b Bond
+	err := r.pool.QueryRow(ctx, `SELECT id, node_id, name, mode, COALESCE(ip_address,''), COALESCE(netmask,''),
+		members, status, created_at, updated_at
+		FROM network_bonds WHERE id = $1`, id).Scan(
+		&b.ID, &b.NodeID, &b.Name, &b.Mode, &b.IPAddress, &b.Netmask,
+		&b.Members, &b.Status, &b.CreatedAt, &b.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get bond: %w", err)
+	}
+	return &b, nil
 }

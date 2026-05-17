@@ -13,6 +13,8 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		r.Get("/", h.ListInterfaces)
 		r.Post("/", h.CreateInterface)
 		r.Put("/{id}", h.UpdateInterface)
+		r.Put("/{id}/enable", h.EnableInterface)
+		r.Put("/{id}/disable", h.DisableInterface)
 		r.Delete("/{id}", h.DeleteInterface)
 	})
 
@@ -20,6 +22,8 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		r.Get("/", h.ListBridges)
 		r.Post("/", h.CreateBridge)
 		r.Put("/{id}", h.UpdateBridge)
+		r.Post("/{id}/slave", h.AddBridgeSlave)
+		r.Delete("/{id}/slave/{slaveId}", h.DelBridgeSlave)
 		r.Delete("/{id}", h.DeleteBridge)
 	})
 
@@ -27,12 +31,15 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		r.Get("/", h.ListBonds)
 		r.Post("/", h.CreateBond)
 		r.Put("/{id}", h.UpdateBond)
+		r.Post("/{id}/slave", h.AddBondSlave)
+		r.Delete("/{id}/slave/{slaveId}", h.DelBondSlave)
 		r.Delete("/{id}", h.DeleteBond)
 	})
 
 	r.Route("/nodes/{nodeId}/routes", func(r chi.Router) {
 		r.Get("/", h.ListRoutes)
 		r.Post("/", h.CreateRoute)
+		r.Put("/{id}", h.UpdateRoute)
 		r.Delete("/{id}", h.DeleteRoute)
 	})
 }

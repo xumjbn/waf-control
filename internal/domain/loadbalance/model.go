@@ -101,6 +101,24 @@ type CreateMemberRequest struct {
 	Weight       int    `json:"weight"`
 }
 
+type UpdateMemberRequest struct {
+	Address      *string `json:"address"`
+	ProtocolPort *int    `json:"protocol_port"`
+	Weight       *int    `json:"weight"`
+	AdminStateUp *bool   `json:"admin_state_up"`
+}
+
+type UpdateHealthMonitorRequest struct {
+	Type          *string `json:"type"`
+	Delay         *int    `json:"delay"`
+	Timeout       *int    `json:"timeout"`
+	MaxRetries    *int    `json:"max_retries"`
+	HTTPMethod    *string `json:"http_method"`
+	URLPath       *string `json:"url_path"`
+	ExpectedCodes *string `json:"expected_codes"`
+	AdminStateUp  *bool   `json:"admin_state_up"`
+}
+
 type CreateHealthMonitorRequest struct {
 	PoolID        int64  `json:"pool_id"`
 	Type          string `json:"type"`

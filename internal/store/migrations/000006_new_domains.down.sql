@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS report_manual;
+DROP TABLE IF EXISTS report_timing;
+DROP TABLE IF EXISTS report_combined;
+DROP TABLE IF EXISTS report_custom;
+DROP TABLE IF EXISTS flow_monitor_records;
+DROP TABLE IF EXISTS flow_saved_queries;
+DROP TABLE IF EXISTS flow_logs;
+DROP TABLE IF EXISTS monitor_metrics;
+DROP TABLE IF EXISTS monitor_metric_specs;
+DROP TABLE IF EXISTS auth_host_config;
+DROP TABLE IF EXISTS auth_hosts;
+DROP TABLE IF EXISTS portscans;

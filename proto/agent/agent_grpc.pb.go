@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AgentService_Register_FullMethodName       = "/agent.AgentService/Register"
-	AgentService_Heartbeat_FullMethodName      = "/agent.AgentService/Heartbeat"
-	AgentService_PushConfig_FullMethodName     = "/agent.AgentService/PushConfig"
-	AgentService_ReportMetrics_FullMethodName  = "/agent.AgentService/ReportMetrics"
-	AgentService_ReportLogs_FullMethodName     = "/agent.AgentService/ReportLogs"
-	AgentService_ExecuteCommand_FullMethodName = "/agent.AgentService/ExecuteCommand"
+	AgentService_Register_FullMethodName           = "/agent.AgentService/Register"
+	AgentService_Heartbeat_FullMethodName          = "/agent.AgentService/Heartbeat"
+	AgentService_PushConfig_FullMethodName         = "/agent.AgentService/PushConfig"
+	AgentService_ReportMetrics_FullMethodName      = "/agent.AgentService/ReportMetrics"
+	AgentService_ReportLogs_FullMethodName         = "/agent.AgentService/ReportLogs"
+	AgentService_ExecuteCommand_FullMethodName     = "/agent.AgentService/ExecuteCommand"
+	AgentService_ReportDeployResult_FullMethodName = "/agent.AgentService/ReportDeployResult"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -46,6 +47,8 @@ type AgentServiceClient interface {
 	ReportLogs(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[LogEntry, LogResponse], error)
 	// ExecuteCommand sends one-off commands from server to agent.
 	ExecuteCommand(ctx context.Context, in *CommandRequest, opts ...grpc.CallOption) (*CommandResponse, error)
+	// ReportDeployResult allows an agent to report the result of applying a config update.
+	ReportDeployResult(ctx context.Context, in *DeployResult, opts ...grpc.CallOption) (*DeployResultResponse, error)
 }
 
 type agentServiceClient struct {
@@ -128,6 +131,16 @@ func (c *agentServiceClient) ExecuteCommand(ctx context.Context, in *CommandRequ
 	return out, nil
 }
 
+func (c *agentServiceClient) ReportDeployResult(ctx context.Context, in *DeployResult, opts ...grpc.CallOption) (*DeployResultResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeployResultResponse)
+	err := c.cc.Invoke(ctx, AgentService_ReportDeployResult_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentServiceServer is the server API for AgentService service.
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility.
@@ -147,6 +160,8 @@ type AgentServiceServer interface {
 	ReportLogs(grpc.ClientStreamingServer[LogEntry, LogResponse]) error
 	// ExecuteCommand sends one-off commands from server to agent.
 	ExecuteCommand(context.Context, *CommandRequest) (*CommandResponse, error)
+	// ReportDeployResult allows an agent to report the result of applying a config update.
+	ReportDeployResult(context.Context, *DeployResult) (*DeployResultResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -174,6 +189,9 @@ func (UnimplementedAgentServiceServer) ReportLogs(grpc.ClientStreamingServer[Log
 }
 func (UnimplementedAgentServiceServer) ExecuteCommand(context.Context, *CommandRequest) (*CommandResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ExecuteCommand not implemented")
+}
+func (UnimplementedAgentServiceServer) ReportDeployResult(context.Context, *DeployResult) (*DeployResultResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReportDeployResult not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 func (UnimplementedAgentServiceServer) testEmbeddedByValue()                      {}
@@ -286,6 +304,24 @@ func _AgentService_ExecuteCommand_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentService_ReportDeployResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeployResult)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).ReportDeployResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_ReportDeployResult_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).ReportDeployResult(ctx, req.(*DeployResult))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentService_ServiceDesc is the grpc.ServiceDesc for AgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -308,6 +344,10 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ExecuteCommand",
 			Handler:    _AgentService_ExecuteCommand_Handler,
+		},
+		{
+			MethodName: "ReportDeployResult",
+			Handler:    _AgentService_ReportDeployResult_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

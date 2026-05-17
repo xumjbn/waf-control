@@ -134,6 +134,19 @@ func (r *Repository) UpdateVIP(ctx context.Context, id int64, req UpdateVIPReque
 	return &v, nil
 }
 
+func (r *Repository) GetVIP(ctx context.Context, id int64) (*VIP, error) {
+	var v VIP
+	err := r.pool.QueryRow(ctx, `SELECT id, name, COALESCE(description,''), address, protocol,
+		protocol_port, pool_id, connection_limit, session_persistence, admin_state_up, created_at, updated_at
+		FROM lb_vips WHERE id = $1`, id).Scan(
+		&v.ID, &v.Name, &v.Description, &v.Address, &v.Protocol, &v.ProtocolPort,
+		&v.PoolID, &v.ConnectionLimit, &v.SessionPersistence, &v.AdminStateUp, &v.CreatedAt, &v.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get vip: %w", err)
+	}
+	return &v, nil
+}
+
 func (r *Repository) DeleteVIP(ctx context.Context, id int64) error {
 	tag, err := r.pool.Exec(ctx, "DELETE FROM lb_vips WHERE id = $1", id)
 	if err != nil {
@@ -238,6 +251,17 @@ func (r *Repository) UpdatePool(ctx context.Context, id int64, req UpdatePoolReq
 	return &p, nil
 }
 
+func (r *Repository) GetPool(ctx context.Context, id int64) (*Pool, error) {
+	var p Pool
+	err := r.pool.QueryRow(ctx, `SELECT id, name, COALESCE(description,''), protocol, lb_method, admin_state_up, created_at, updated_at
+		FROM lb_pools WHERE id = $1`, id).Scan(
+		&p.ID, &p.Name, &p.Description, &p.Protocol, &p.LBMethod, &p.AdminStateUp, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get pool: %w", err)
+	}
+	return &p, nil
+}
+
 func (r *Repository) DeletePool(ctx context.Context, id int64) error {
 	tag, err := r.pool.Exec(ctx, "DELETE FROM lb_pools WHERE id = $1", id)
 	if err != nil {
@@ -284,6 +308,61 @@ func (r *Repository) CreateMember(ctx context.Context, req CreateMemberRequest) 
 		&m.ID, &m.PoolID, &m.Address, &m.ProtocolPort, &m.Weight, &m.AdminStateUp, &m.Status, &m.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create member: %w", err)
+	}
+	return &m, nil
+}
+
+func (r *Repository) GetMember(ctx context.Context, id int64) (*Member, error) {
+	var m Member
+	err := r.pool.QueryRow(ctx, `SELECT id, pool_id, address, protocol_port, weight, admin_state_up, status, created_at
+		FROM lb_members WHERE id = $1`, id).Scan(
+		&m.ID, &m.PoolID, &m.Address, &m.ProtocolPort, &m.Weight, &m.AdminStateUp, &m.Status, &m.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get member: %w", err)
+	}
+	return &m, nil
+}
+
+func (r *Repository) UpdateMember(ctx context.Context, id int64, req UpdateMemberRequest) (*Member, error) {
+	var sets []string
+	var args []interface{}
+	argIdx := 1
+
+	if req.Address != nil {
+		sets = append(sets, fmt.Sprintf("address = $%d", argIdx))
+		args = append(args, *req.Address)
+		argIdx++
+	}
+	if req.ProtocolPort != nil {
+		sets = append(sets, fmt.Sprintf("protocol_port = $%d", argIdx))
+		args = append(args, *req.ProtocolPort)
+		argIdx++
+	}
+	if req.Weight != nil {
+		sets = append(sets, fmt.Sprintf("weight = $%d", argIdx))
+		args = append(args, *req.Weight)
+		argIdx++
+	}
+	if req.AdminStateUp != nil {
+		sets = append(sets, fmt.Sprintf("admin_state_up = $%d", argIdx))
+		args = append(args, *req.AdminStateUp)
+		argIdx++
+	}
+
+	if len(sets) == 0 {
+		return nil, fmt.Errorf("no fields to update")
+	}
+
+	query := fmt.Sprintf(`UPDATE lb_members SET %s WHERE id = $%d
+		RETURNING id, pool_id, address, protocol_port, weight, admin_state_up, status, created_at`,
+		strings.Join(sets, ", "), argIdx)
+	args = append(args, id)
+
+	var m Member
+	err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&m.ID, &m.PoolID, &m.Address, &m.ProtocolPort, &m.Weight, &m.AdminStateUp, &m.Status, &m.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("update member: %w", err)
 	}
 	return &m, nil
 }
@@ -340,6 +419,72 @@ func (r *Repository) CreateHealthMonitor(ctx context.Context, req CreateHealthMo
 		&hm.HTTPMethod, &hm.URLPath, &hm.ExpectedCodes, &hm.AdminStateUp, &hm.CreatedAt, &hm.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create health monitor: %w", err)
+	}
+	return &hm, nil
+}
+
+func (r *Repository) UpdateHealthMonitor(ctx context.Context, poolID int64, req UpdateHealthMonitorRequest) (*HealthMonitor, error) {
+	var sets []string
+	var args []interface{}
+	argIdx := 1
+
+	if req.Type != nil {
+		sets = append(sets, fmt.Sprintf("type = $%d", argIdx))
+		args = append(args, *req.Type)
+		argIdx++
+	}
+	if req.Delay != nil {
+		sets = append(sets, fmt.Sprintf("delay = $%d", argIdx))
+		args = append(args, *req.Delay)
+		argIdx++
+	}
+	if req.Timeout != nil {
+		sets = append(sets, fmt.Sprintf("timeout = $%d", argIdx))
+		args = append(args, *req.Timeout)
+		argIdx++
+	}
+	if req.MaxRetries != nil {
+		sets = append(sets, fmt.Sprintf("max_retries = $%d", argIdx))
+		args = append(args, *req.MaxRetries)
+		argIdx++
+	}
+	if req.HTTPMethod != nil {
+		sets = append(sets, fmt.Sprintf("http_method = $%d", argIdx))
+		args = append(args, *req.HTTPMethod)
+		argIdx++
+	}
+	if req.URLPath != nil {
+		sets = append(sets, fmt.Sprintf("url_path = $%d", argIdx))
+		args = append(args, *req.URLPath)
+		argIdx++
+	}
+	if req.ExpectedCodes != nil {
+		sets = append(sets, fmt.Sprintf("expected_codes = $%d", argIdx))
+		args = append(args, *req.ExpectedCodes)
+		argIdx++
+	}
+	if req.AdminStateUp != nil {
+		sets = append(sets, fmt.Sprintf("admin_state_up = $%d", argIdx))
+		args = append(args, *req.AdminStateUp)
+		argIdx++
+	}
+
+	if len(sets) == 0 {
+		return nil, fmt.Errorf("no fields to update")
+	}
+
+	sets = append(sets, "updated_at = NOW()")
+	query := fmt.Sprintf(`UPDATE lb_health_monitors SET %s WHERE pool_id = $%d
+		RETURNING id, pool_id, type, delay, timeout, max_retries, COALESCE(http_method,'GET'), COALESCE(url_path,'/'), COALESCE(expected_codes,'200'), admin_state_up, created_at, updated_at`,
+		strings.Join(sets, ", "), argIdx)
+	args = append(args, poolID)
+
+	var hm HealthMonitor
+	err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&hm.ID, &hm.PoolID, &hm.Type, &hm.Delay, &hm.Timeout, &hm.MaxRetries,
+		&hm.HTTPMethod, &hm.URLPath, &hm.ExpectedCodes, &hm.AdminStateUp, &hm.CreatedAt, &hm.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("update health monitor: %w", err)
 	}
 	return &hm, nil
 }

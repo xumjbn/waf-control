@@ -17,18 +17,18 @@ type Service struct {
 	pb.UnimplementedAgentServiceServer
 	pool    *pgxpool.Pool
 	mu      sync.RWMutex
-	nodes   map[string]*nodeState
+	nodes   map[string]*NodeState
 	configs chan configEvent
 }
 
-type nodeState struct {
-	nodeID    string
-	hostname  string
-	ip        string
-	version   string
-	lastSeen  time.Time
-	status    pb.NodeStatus_State
-	resources *pb.ResourceUsage
+type NodeState struct {
+	NodeID    string
+	Hostname  string
+	IP        string
+	Version   string
+	LastSeen  time.Time
+	Status    pb.NodeStatus_State
+	Resources *pb.ResourceUsage
 }
 
 type configEvent struct {
@@ -39,7 +39,7 @@ type configEvent struct {
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{
 		pool:    pool,
-		nodes:   make(map[string]*nodeState),
+		nodes:   make(map[string]*NodeState),
 		configs: make(chan configEvent, 256),
 	}
 }
@@ -48,13 +48,13 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	slog.Info("agent register", "node_id", req.NodeId, "hostname", req.Hostname, "ip", req.IpAddress)
 
 	s.mu.Lock()
-	s.nodes[req.NodeId] = &nodeState{
-		nodeID:   req.NodeId,
-		hostname: req.Hostname,
-		ip:       req.IpAddress,
-		version:  req.Version,
-		lastSeen: time.Now(),
-		status:   pb.NodeStatus_HEALTHY,
+	s.nodes[req.NodeId] = &NodeState{
+		NodeID:   req.NodeId,
+		Hostname: req.Hostname,
+		IP:       req.IpAddress,
+		Version:  req.Version,
+		LastSeen: time.Now(),
+		Status:   pb.NodeStatus_HEALTHY,
 	}
 	s.mu.Unlock()
 
@@ -76,9 +76,9 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 func (s *Service) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	s.mu.Lock()
 	if ns, ok := s.nodes[req.NodeId]; ok {
-		ns.lastSeen = time.Now()
-		ns.status = req.Status.GetState()
-		ns.resources = req.Resources
+		ns.LastSeen = time.Now()
+		ns.Status = req.Status.GetState()
+		ns.Resources = req.Resources
 	}
 	s.mu.Unlock()
 
@@ -181,12 +181,37 @@ func (s *Service) persistLog(ctx context.Context, entry *pb.LogEntry) error {
 }
 
 // GetConnectedNodes returns a snapshot of currently connected nodes.
-func (s *Service) GetConnectedNodes() []nodeState {
+func (s *Service) GetConnectedNodes() []NodeState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	nodes := make([]nodeState, 0, len(s.nodes))
+	nodes := make([]NodeState, 0, len(s.nodes))
 	for _, ns := range s.nodes {
 		nodes = append(nodes, *ns)
 	}
 	return nodes
+}
+
+// ReportDeployResult handles deploy result reported back from an agent.
+func (s *Service) ReportDeployResult(ctx context.Context, req *pb.DeployResult) (*pb.DeployResultResponse, error) {
+	slog.Info("deploy result", "node", req.NodeId, "version", req.Version, "success", req.Success, "msg", req.Message)
+
+	if req.Success {
+		_, err := s.pool.Exec(ctx,
+			`UPDATE deployment_node_status SET status = 'success', message = $1, applied_at = $2
+			 WHERE node_hostname = $3 AND status = 'pending'`,
+			req.Message, req.AppliedAt.AsTime(), req.NodeId)
+		if err != nil {
+			slog.Warn("update deploy status failed", "error", err)
+		}
+	} else {
+		_, err := s.pool.Exec(ctx,
+			`UPDATE deployment_node_status SET status = 'failed', message = $1
+			 WHERE node_hostname = $2 AND status = 'pending'`,
+			req.Message, req.NodeId)
+		if err != nil {
+			slog.Warn("update deploy status failed", "error", err)
+		}
+	}
+
+	return &pb.DeployResultResponse{Ack: true}, nil
 }
