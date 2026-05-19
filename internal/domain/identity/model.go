@@ -124,6 +124,8 @@ type CreateUserRequest struct {
 	Password string   `json:"password"`
 	Email    string   `json:"email,omitempty"`
 	RealName string   `json:"real_name,omitempty"`
+	Avatar   string   `json:"avatar,omitempty"`
+	Project  string   `json:"project,omitempty"`
 	RoleIDs  []int64  `json:"role_ids,omitempty"`
 }
 
@@ -132,6 +134,8 @@ type UpdateUserRequest struct {
 	RealName *string `json:"real_name,omitempty"`
 	IsActive *bool   `json:"is_active,omitempty"`
 	Password *string `json:"password,omitempty"`
+	Avatar   *string `json:"avatar,omitempty"`
+	Project  *string `json:"project,omitempty"`
 	RoleIDs  []int64 `json:"role_ids,omitempty"`
 }
 
@@ -142,8 +146,12 @@ type CreateRoleRequest struct {
 }
 
 type UpdateRoleRequest struct {
+	Name        *string  `json:"name,omitempty"`         // 中文显示名
+	RoleKey     *string  `json:"role_key,omitempty"`     // 英文 canonical key（usePermission 依赖）
 	Description *string  `json:"description,omitempty"`
 	Permissions []string `json:"permissions,omitempty"`
+	Readonly    *bool    `json:"readonly,omitempty"`
+	Color       *string  `json:"color,omitempty"`
 }
 
 type LoginRequest struct {

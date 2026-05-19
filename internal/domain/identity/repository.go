@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -143,23 +144,38 @@ func (r *Repository) ListRolesWithCount(ctx context.Context) ([]Role, []int, err
 }
 
 func (r *Repository) CreateUser(ctx context.Context, u *User) error {
+	// avatar / project / last_login are post-000007+000008 columns; EnsureSchema
+	// guarantees they exist. Avatar defaults to the username's first rune so the
+	// frontend list never has to render an empty chip.
+	avatar := u.Avatar
+	if avatar == nil || *avatar == "" {
+		fallback := ""
+		if len(u.Username) > 0 {
+			fallback = strings.ToUpper(string([]rune(u.Username)[0]))
+		}
+		avatar = &fallback
+	}
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO users (username, password, email, real_name, is_active)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO users (username, password, email, real_name, is_active, avatar, project)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at`,
-		u.Username, u.Password, u.Email, u.RealName, u.IsActive,
+		u.Username, u.Password, u.Email, u.RealName, u.IsActive, avatar, u.Project,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create user: %w", err)
 	}
+	u.Avatar = avatar
 	return nil
 }
 
 func (r *Repository) UpdateUser(ctx context.Context, u *User) error {
+	// avatar / project are post-000008 columns; EnsureSchema makes them safe.
 	_, err := r.pool.Exec(ctx, `
-		UPDATE users SET email=$1, real_name=$2, is_active=$3, password=$4, updated_at=NOW()
-		WHERE id=$5`,
-		u.Email, u.RealName, u.IsActive, u.Password, u.ID)
+		UPDATE users
+		   SET email=$1, real_name=$2, is_active=$3, password=$4,
+		       avatar=$5, project=$6, updated_at=NOW()
+		 WHERE id=$7`,
+		u.Email, u.RealName, u.IsActive, u.Password, u.Avatar, u.Project, u.ID)
 	if err != nil {
 		return fmt.Errorf("update user: %w", err)
 	}
@@ -268,10 +284,20 @@ func (r *Repository) UpdateRole(ctx context.Context, role *Role) error {
 	if err != nil {
 		return fmt.Errorf("marshal permissions: %w", err)
 	}
+	// name / role_key / readonly / color are post-000008 columns; the
+	// startup EnsureSchema guarantees they exist by the time this runs.
 	_, err = r.pool.Exec(ctx, `
-		UPDATE roles SET description=$1, permissions=$2, updated_at=NOW()
-		WHERE id=$3`,
-		role.Description, permsJSON, role.ID)
+		UPDATE roles
+		   SET name        = $1,
+		       role_key    = NULLIF($2, ''),
+		       description = $3,
+		       permissions = $4,
+		       readonly    = $5,
+		       color       = $6,
+		       updated_at  = NOW()
+		 WHERE id = $7`,
+		role.Name, role.RoleKey, role.Description, permsJSON,
+		role.Readonly, role.Color, role.ID)
 	if err != nil {
 		return fmt.Errorf("update role: %w", err)
 	}

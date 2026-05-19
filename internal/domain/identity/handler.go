@@ -208,6 +208,12 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		RealName: &req.RealName,
 		IsActive: true,
 	}
+	if req.Avatar != "" {
+		user.Avatar = &req.Avatar
+	}
+	if req.Project != "" {
+		user.Project = &req.Project
+	}
 
 	if err := h.svc.repo.CreateUser(r.Context(), user); err != nil {
 		slog.Error("create user failed", "error", err)
@@ -303,6 +309,12 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.IsActive != nil {
 		user.IsActive = *req.IsActive
+	}
+	if req.Avatar != nil {
+		user.Avatar = req.Avatar
+	}
+	if req.Project != nil {
+		user.Project = req.Project
 	}
 	if req.Password != nil && *req.Password != "" {
 		hashed, err := HashPassword(*req.Password)
@@ -501,11 +513,23 @@ func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Name != nil {
+		role.Name = *req.Name
+	}
+	if req.RoleKey != nil {
+		role.RoleKey = *req.RoleKey
+	}
 	if req.Description != nil {
 		role.Description = *req.Description
 	}
 	if req.Permissions != nil {
 		role.Permissions = req.Permissions
+	}
+	if req.Readonly != nil {
+		role.Readonly = *req.Readonly
+	}
+	if req.Color != nil {
+		role.Color = *req.Color
 	}
 
 	if err := h.svc.repo.UpdateRole(r.Context(), role); err != nil {
@@ -514,7 +538,7 @@ func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, role)
+	writeJSON(w, http.StatusOK, role.ToDTO())
 }
 
 // DeleteRole godoc
