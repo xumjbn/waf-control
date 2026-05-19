@@ -24,6 +24,9 @@ type userV3 struct {
 	DomainID    string  `json:"domain_id"`
 	Description *string `json:"description,omitempty"`
 	CreatedAt   string  `json:"created_at,omitempty"`
+	Role        string  `json:"role,omitempty"`
+	Project     string  `json:"project,omitempty"`
+	LastLogin   string  `json:"last_login,omitempty"`
 }
 
 type roleV3 struct {
@@ -31,6 +34,8 @@ type roleV3 struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	DomainID    string `json:"domain_id"`
+	Permissions string `json:"permissions,omitempty"`
+	UserCount   int    `json:"user_count"`
 }
 
 type userPayload struct {
@@ -58,7 +63,7 @@ func toUserV3(u *User) userV3 {
 	if u == nil {
 		return userV3{}
 	}
-	return userV3{
+	v := userV3{
 		ID:          strconv.FormatInt(u.ID, 10),
 		Name:        u.Username,
 		Email:       u.Email,
@@ -67,6 +72,23 @@ func toUserV3(u *User) userV3 {
 		Description: u.RealName,
 		CreatedAt:   u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+	if u.LastLogin != nil {
+		v.LastLogin = u.LastLogin.Format("2006-01-02 15:04")
+	}
+	return v
+}
+
+func toUserV3Enriched(ue *UserEnriched) userV3 {
+	v := toUserV3(&ue.User)
+	if ue.RoleName != nil {
+		v.Role = *ue.RoleName
+	}
+	if ue.ProjectName != nil {
+		v.Project = *ue.ProjectName
+	} else if v.Role == "系统管理员" || v.Role == "安全分析师" {
+		v.Project = "全部"
+	}
+	return v
 }
 
 func toRoleV3(r *Role) roleV3 {
@@ -81,12 +103,18 @@ func toRoleV3(r *Role) roleV3 {
 	}
 }
 
+func toRoleV3WithCount(r *Role, count int) roleV3 {
+	v := toRoleV3(r)
+	v.UserCount = count
+	return v
+}
+
 func parseID(s string) (int64, error) { return strconv.ParseInt(s, 10, 64) }
 
 // === Users (v3 wrap) ===
 
 func (h *Handler) ListUsersV3(w http.ResponseWriter, r *http.Request) {
-	users, err := h.svc.repo.ListUsers(r.Context())
+	users, err := h.svc.repo.ListUsersEnriched(r.Context())
 	if err != nil {
 		slog.Error("v3 list users failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
@@ -94,7 +122,7 @@ func (h *Handler) ListUsersV3(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]userV3, 0, len(users))
 	for i := range users {
-		out = append(out, toUserV3(&users[i]))
+		out = append(out, toUserV3Enriched(&users[i]))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"users": out})
 }
@@ -231,14 +259,14 @@ func (h *Handler) ListUserRolesV3(w http.ResponseWriter, r *http.Request) {
 // === Roles (v3 wrap) ===
 
 func (h *Handler) ListRolesV3(w http.ResponseWriter, r *http.Request) {
-	roles, err := h.svc.repo.ListRoles(r.Context())
+	roles, counts, err := h.svc.repo.ListRolesWithCount(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 	out := make([]roleV3, 0, len(roles))
 	for i := range roles {
-		out = append(out, toRoleV3(&roles[i]))
+		out = append(out, toRoleV3WithCount(&roles[i], counts[i]))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"roles": out})
 }

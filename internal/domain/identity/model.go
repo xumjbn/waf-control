@@ -3,15 +3,16 @@ package identity
 import "time"
 
 type User struct {
-	ID        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Password  string    `json:"-"`
-	Email     *string   `json:"email,omitempty"`
-	RealName  *string   `json:"real_name,omitempty"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Roles     []Role    `json:"roles,omitempty"`
+	ID        int64      `json:"id"`
+	Username  string     `json:"username"`
+	Password  string     `json:"-"`
+	Email     *string    `json:"email,omitempty"`
+	RealName  *string    `json:"real_name,omitempty"`
+	IsActive  bool       `json:"is_active"`
+	LastLogin *time.Time `json:"last_login,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	Roles     []Role     `json:"roles,omitempty"`
 }
 
 type Role struct {

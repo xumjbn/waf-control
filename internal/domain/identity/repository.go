@@ -74,6 +74,62 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
+type UserEnriched struct {
+	User
+	RoleName    *string
+	ProjectName *string
+}
+
+func (r *Repository) ListUsersEnriched(ctx context.Context) ([]UserEnriched, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT u.id, u.username, u.password, u.email, u.real_name, u.is_active,
+		       u.last_login, u.created_at, u.updated_at,
+		       (SELECT ro.name FROM user_roles ur JOIN roles ro ON ro.id = ur.role_id WHERE ur.user_id = u.id LIMIT 1) AS role_name,
+		       (SELECT p.name FROM project_user_roles pur JOIN projects p ON p.id = pur.project_id WHERE pur.user_id = u.id LIMIT 1) AS project_name
+		FROM users u ORDER BY u.id`)
+	if err != nil {
+		return nil, fmt.Errorf("list users enriched: %w", err)
+	}
+	defer rows.Close()
+
+	var users []UserEnriched
+	for rows.Next() {
+		var ue UserEnriched
+		if err := rows.Scan(&ue.ID, &ue.Username, &ue.Password, &ue.Email, &ue.RealName, &ue.IsActive,
+			&ue.LastLogin, &ue.CreatedAt, &ue.UpdatedAt, &ue.RoleName, &ue.ProjectName); err != nil {
+			return nil, fmt.Errorf("scan enriched user: %w", err)
+		}
+		users = append(users, ue)
+	}
+	return users, nil
+}
+
+func (r *Repository) ListRolesWithCount(ctx context.Context) ([]Role, []int, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT r.id, r.name, r.description, r.permissions, r.created_at, r.updated_at,
+		       (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count
+		FROM roles r ORDER BY r.id`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list roles with count: %w", err)
+	}
+	defer rows.Close()
+
+	var roles []Role
+	var counts []int
+	for rows.Next() {
+		var role Role
+		var permsJSON []byte
+		var count int
+		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &permsJSON, &role.CreatedAt, &role.UpdatedAt, &count); err != nil {
+			return nil, nil, fmt.Errorf("scan role with count: %w", err)
+		}
+		_ = json.Unmarshal(permsJSON, &role.Permissions)
+		roles = append(roles, role)
+		counts = append(counts, count)
+	}
+	return roles, counts, nil
+}
+
 func (r *Repository) CreateUser(ctx context.Context, u *User) error {
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO users (username, password, email, real_name, is_active)

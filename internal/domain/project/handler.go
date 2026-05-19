@@ -35,6 +35,10 @@ type projectV3 struct {
 	ParentID    *string `json:"parent_id,omitempty"`
 	IsDomain    bool    `json:"is_domain"`
 	Enabled     bool    `json:"enabled"`
+	Members     int     `json:"members"`
+	Sites       int     `json:"sites"`
+	Instances   int     `json:"instances"`
+	CreatedAt   string  `json:"created_at,omitempty"`
 }
 
 type projectPayload struct {
@@ -49,7 +53,7 @@ type projectWrapper struct {
 	Project projectPayload `json:"project"`
 }
 
-func toV3(p *Project) projectV3 {
+func toV3(p *Project, members int) projectV3 {
 	v := projectV3{
 		ID:          strconv.FormatInt(p.ID, 10),
 		Name:        p.Name,
@@ -57,6 +61,10 @@ func toV3(p *Project) projectV3 {
 		DomainID:    p.DomainID,
 		IsDomain:    p.IsDomain,
 		Enabled:     p.Enabled,
+		Members:     members,
+		Sites:       0,
+		Instances:   0,
+		CreatedAt:   p.CreatedAt.Format("2006-01-02"),
 	}
 	if p.ParentID != nil {
 		s := strconv.FormatInt(*p.ParentID, 10)
@@ -87,7 +95,7 @@ func parseID(s string) (int64, error) { return strconv.ParseInt(s, 10, 64) }
 // @Failure 500 {object} map[string]string "服务器错误"
 // @Router /projects [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	list, err := h.repo.List(r.Context())
+	list, counts, err := h.repo.ListWithMemberCount(r.Context())
 	if err != nil {
 		slog.Error("list projects failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
@@ -95,7 +103,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]projectV3, 0, len(list))
 	for i := range list {
-		out = append(out, toV3(&list[i]))
+		out = append(out, toV3(&list[i], counts[i]))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"projects": out})
 }
@@ -128,7 +136,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"project": toV3(p)})
+	writeJSON(w, http.StatusOK, map[string]any{"project": toV3(p, 0)})
 }
 
 // Create godoc
@@ -159,7 +167,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create project"})
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"project": toV3(p)})
+	writeJSON(w, http.StatusCreated, map[string]any{"project": toV3(p, 0)})
 }
 
 // Update godoc
@@ -197,7 +205,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"project": toV3(updated)})
+	writeJSON(w, http.StatusOK, map[string]any{"project": toV3(updated, 0)})
 }
 
 // Delete godoc

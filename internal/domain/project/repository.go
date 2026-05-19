@@ -37,6 +37,30 @@ func (r *Repository) List(ctx context.Context) ([]Project, error) {
 	return out, nil
 }
 
+func (r *Repository) ListWithMemberCount(ctx context.Context) ([]Project, []int, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.id, p.name, p.description, p.domain_id, p.parent_id, p.is_domain, p.enabled, p.created_at, p.updated_at,
+		       (SELECT COUNT(DISTINCT user_id) FROM project_user_roles pur WHERE pur.project_id = p.id) AS member_count
+		FROM projects p ORDER BY p.id`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list projects with members: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []Project
+	var counts []int
+	for rows.Next() {
+		var p Project
+		var count int
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.DomainID, &p.ParentID, &p.IsDomain, &p.Enabled, &p.CreatedAt, &p.UpdatedAt, &count); err != nil {
+			return nil, nil, fmt.Errorf("scan project with members: %w", err)
+		}
+		projects = append(projects, p)
+		counts = append(counts, count)
+	}
+	return projects, counts, nil
+}
+
 func (r *Repository) Get(ctx context.Context, id int64) (*Project, error) {
 	var p Project
 	err := r.pool.QueryRow(ctx, `
