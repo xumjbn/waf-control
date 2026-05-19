@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ type NodeState struct {
 	LastSeen  time.Time
 	Status    pb.NodeStatus_State
 	Resources *pb.ResourceUsage
+	DBNodeID  int64
 }
 
 type configEvent struct {
@@ -47,6 +49,11 @@ func NewService(pool *pgxpool.Pool) *Service {
 func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	slog.Info("agent register", "node_id", req.NodeId, "hostname", req.Hostname, "ip", req.IpAddress)
 
+	dbID, err := s.upsertNode(ctx, req)
+	if err != nil {
+		slog.Error("upsert node failed", "error", err)
+	}
+
 	s.mu.Lock()
 	s.nodes[req.NodeId] = &NodeState{
 		NodeID:   req.NodeId,
@@ -55,44 +62,147 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		Version:  req.Version,
 		LastSeen: time.Now(),
 		Status:   pb.NodeStatus_HEALTHY,
+		DBNodeID: dbID,
 	}
 	s.mu.Unlock()
 
-	_, err := s.pool.Exec(ctx, `INSERT INTO heartbeats (node_id, status, cpu_percent, memory_percent, disk_percent)
-		VALUES ((SELECT id FROM nodes WHERE hostname = $1 LIMIT 1), 'healthy', 0, 0, 0)
-		ON CONFLICT DO NOTHING`, req.Hostname)
-	if err != nil {
-		slog.Warn("register heartbeat insert failed", "error", err)
+	if dbID > 0 {
+		_, err := s.pool.Exec(ctx, `INSERT INTO heartbeats (node_id, status, cpu_percent, memory_percent, disk_percent)
+			VALUES ($1, 'healthy', 0, 0, 0)`, dbID)
+		if err != nil {
+			slog.Warn("register heartbeat insert failed", "error", err)
+		}
 	}
 
 	return &pb.RegisterResponse{
-		Accepted:            true,
-		Message:             "registered",
-		AssignedId:          req.NodeId,
+		Accepted:             true,
+		Message:              "registered",
+		AssignedId:           req.NodeId,
 		HeartbeatIntervalSec: 10,
 	}, nil
 }
 
+func (s *Service) upsertNode(ctx context.Context, req *pb.RegisterRequest) (int64, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx, `
+		UPDATE nodes
+		SET ip_address = $2,
+		    status = 'online',
+		    agent_ver = COALESCE(NULLIF($3,''), agent_ver),
+		    last_seen = NOW(),
+		    updated_at = NOW()
+		WHERE hostname = $1 OR name = $1
+		RETURNING id`, req.Hostname, req.IpAddress, req.Version).Scan(&id)
+	if err == nil && id > 0 {
+		return id, nil
+	}
+
+	err = s.pool.QueryRow(ctx, `
+		INSERT INTO nodes (name, hostname, ip_address, status, agent_ver, last_seen)
+		VALUES ($1, $1, $2, 'online', $3, NOW())
+		RETURNING id`, req.Hostname, req.IpAddress, req.Version).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("upsert node: %w", err)
+	}
+	return id, nil
+}
+
 func (s *Service) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	s.mu.Lock()
-	if ns, ok := s.nodes[req.NodeId]; ok {
+	ns, ok := s.nodes[req.NodeId]
+	if ok {
 		ns.LastSeen = time.Now()
 		ns.Status = req.Status.GetState()
 		ns.Resources = req.Resources
 	}
 	s.mu.Unlock()
 
-	if req.Resources != nil {
-		_, err := s.pool.Exec(ctx, `INSERT INTO heartbeats (node_id, status, cpu_percent, memory_percent, disk_percent)
-			VALUES ((SELECT id FROM nodes WHERE hostname = $1 LIMIT 1), $2, $3, $4, $5)`,
-			req.NodeId, req.Status.GetState().String(), req.Resources.CpuPercent,
-			req.Resources.MemoryPercent, req.Resources.DiskPercent)
+	if !ok || ns.DBNodeID == 0 {
+		dbID, err := s.lookupNodeID(ctx, req.NodeId)
 		if err != nil {
+			slog.Warn("heartbeat lookup node failed", "node_id", req.NodeId, "error", err)
+		} else {
+			s.mu.Lock()
+			if ns, ok = s.nodes[req.NodeId]; ok {
+				ns.DBNodeID = dbID
+			}
+			s.mu.Unlock()
+		}
+	}
+
+	if req.Resources != nil && ns != nil && ns.DBNodeID > 0 {
+		if err := s.persistHeartbeat(ctx, ns.DBNodeID, req); err != nil {
 			slog.Warn("heartbeat insert failed", "error", err)
+		}
+		s.persistMetrics(ctx, ns.DBNodeID, req)
+	}
+
+	if ns != nil && ns.DBNodeID > 0 {
+		_, err := s.pool.Exec(ctx, `UPDATE nodes SET last_seen = NOW(), status = 'online', updated_at = NOW() WHERE id = $1`, ns.DBNodeID)
+		if err != nil {
+			slog.Debug("update node last_seen failed", "error", err)
 		}
 	}
 
 	return &pb.HeartbeatResponse{Ack: true}, nil
+}
+
+func (s *Service) lookupNodeID(ctx context.Context, hostname string) (int64, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT id FROM nodes WHERE hostname = $1 OR name = $1 LIMIT 1`, hostname,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("lookup node id: %w", err)
+	}
+	return id, nil
+}
+
+func (s *Service) persistHeartbeat(ctx context.Context, dbNodeID int64, req *pb.HeartbeatRequest) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO heartbeats (node_id, status, cpu_percent, memory_percent, disk_percent)
+		VALUES ($1, $2, $3, $4, $5)`,
+		dbNodeID, mapHeartbeatStatus(req.Status.GetState()), req.Resources.CpuPercent,
+		req.Resources.MemoryPercent, req.Resources.DiskPercent)
+	return err
+}
+
+func mapHeartbeatStatus(state pb.NodeStatus_State) string {
+	switch state {
+	case pb.NodeStatus_HEALTHY:
+		return "healthy"
+	case pb.NodeStatus_DEGRADED:
+		return "degraded"
+	case pb.NodeStatus_ERROR:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
+func (s *Service) persistMetrics(ctx context.Context, dbNodeID int64, req *pb.HeartbeatRequest) {
+	r := req.Resources
+	samples := []struct {
+		Name  string
+		Value float64
+		Unit  string
+	}{
+		{"cpu_percent", r.CpuPercent, "%"},
+		{"memory_percent", r.MemoryPercent, "%"},
+		{"disk_percent", r.DiskPercent, "%"},
+		{"net_connections", float64(r.NetConnections), "count"},
+		{"requests_per_second", float64(r.RequestsPerSecond), "rps"},
+		{"memory_total_bytes", float64(r.MemoryTotalBytes), "bytes"},
+		{"disk_total_bytes", float64(r.DiskTotalBytes), "bytes"},
+	}
+	for _, m := range samples {
+		_, err := s.pool.Exec(ctx,
+			`INSERT INTO monitor_metrics (name, value, unit, node_id, recorded_at)
+			 VALUES ($1, $2, $3, $4, NOW())`,
+			m.Name, m.Value, m.Unit, dbNodeID)
+		if err != nil {
+			slog.Debug("persist metric failed", "metric", m.Name, "error", err)
+		}
+	}
 }
 
 func (s *Service) PushConfig(req *pb.ConfigRequest, stream pb.AgentService_PushConfigServer) error {
@@ -161,9 +271,17 @@ func (s *Service) BroadcastConfig(nodeID string, configType pb.ConfigUpdate_Conf
 func (s *Service) persistLog(ctx context.Context, entry *pb.LogEntry) error {
 	switch entry.Type {
 	case pb.LogEntry_ATTACK:
-		_, err := s.pool.Exec(ctx, `INSERT INTO attack_logs (node_id, src_ip, action, occurred_at)
-			VALUES ((SELECT id FROM nodes WHERE hostname = $1 LIMIT 1), '', 'block', $2)`,
-			entry.NodeId, entry.OccurredAt.AsTime())
+		fields := parseLogPayload(entry.Payload)
+		_, err := s.pool.Exec(ctx, `INSERT INTO attack_logs (node_id, src_ip, dst_ip, attack_type, rule_id, action, payload, occurred_at)
+			VALUES ((SELECT id FROM nodes WHERE hostname = $1 LIMIT 1), $2, $3, $4, $5, $6, $7, $8)`,
+			entry.NodeId,
+			fields["src_ip"],
+			fields["host"],
+			fields["attack_type"],
+			fields["rule_id"],
+			"block",
+			fields["msg"],
+			entry.OccurredAt.AsTime())
 		return err
 	case pb.LogEntry_ANTIVIRUS:
 		_, err := s.pool.Exec(ctx, `INSERT INTO antivirus_logs (node_id, file_name, virus_name, action, occurred_at)
@@ -178,6 +296,16 @@ func (s *Service) persistLog(ctx context.Context, entry *pb.LogEntry) error {
 	default:
 		return nil
 	}
+}
+
+func parseLogPayload(payload []byte) map[string]string {
+	out := make(map[string]string)
+	for _, kv := range strings.Split(string(payload), "|") {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			out[kv[:i]] = kv[i+1:]
+		}
+	}
+	return out
 }
 
 // GetConnectedNodes returns a snapshot of currently connected nodes.

@@ -14,9 +14,7 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool, siteRepo *site.Repository,
 
 	r.Get("/deployments/{id}", h.GetDeployment)
 
-	r.Route("/sites/{id}", func(r chi.Router) {
-		r.Post("/deploy", h.DeploySite)
-		r.Get("/deployments", h.ListDeployments)
-		r.Post("/preview", h.PreviewConfig)
-	})
+	r.Post("/sites/{id}/deploy", h.DeploySite)
+	r.Get("/sites/{id}/deployments", h.ListDeployments)
+	r.Post("/sites/{id}/preview", h.PreviewConfig)
 }

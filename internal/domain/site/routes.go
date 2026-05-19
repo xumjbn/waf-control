@@ -3,11 +3,21 @@ package site
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/agent"
 )
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
+	registerWith(r, pool, nil)
+}
+
+func RegisterRoutesWithAgent(r chi.Router, pool *pgxpool.Pool, agentSvc *agent.Service) {
+	registerWith(r, pool, agentSvc)
+}
+
+func registerWith(r chi.Router, pool *pgxpool.Pool, agentSvc *agent.Service) {
 	repo := NewRepository(pool)
-	h := NewHandler(repo)
+	h := NewHandlerWithAgent(repo, agentSvc)
 
 	r.Route("/sites", func(r chi.Router) {
 		r.Get("/", h.List)

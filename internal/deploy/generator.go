@@ -6,10 +6,11 @@ import (
 )
 
 type SiteConfig struct {
-	Domain    string
-	Protocol  string
-	Upstreams []string
-	SSLName   string
+	Domain     string
+	Protocol   string
+	Upstreams  []string
+	SSLName    string
+	WAFEnabled bool
 }
 
 type PolicyConfig struct {
@@ -64,8 +65,12 @@ func generateNginx(site *SiteConfig) string {
 		b.WriteString("    ssl_ciphers HIGH:!aNULL:!MD5;\n\n")
 	}
 
-	b.WriteString("    modsecurity on;\n")
-	b.WriteString(fmt.Sprintf("    modsecurity_rules_file /etc/nginx/modsec/%s.conf;\n\n", site.Domain))
+	if site.WAFEnabled {
+		b.WriteString("    modsecurity on;\n")
+		b.WriteString("    modsecurity_rules_file /etc/modsecurity.d/include.conf;\n\n")
+	} else {
+		b.WriteString("    modsecurity off;\n\n")
+	}
 
 	upstreamName := fmt.Sprintf("backend_%s", strings.ReplaceAll(site.Domain, ".", "_"))
 	b.WriteString("    location / {\n")
@@ -105,8 +110,15 @@ func generateModsec(policy *PolicyConfig) string {
 
 	b.WriteString("\nSecRequestBodyAccess On\n")
 	b.WriteString("SecResponseBodyAccess Off\n")
-	b.WriteString("SecRequestBodyLimit 13107200\n")
-	b.WriteString("SecRequestBodyInMemoryLimit 131072\n\n")
+	b.WriteString("SecRequestBodyLimit 13107200\n\n")
+
+	// 加载 OWASP CRS（agent 镜像内置）+ deploy/modsec/ 单一来源
+	b.WriteString("Include /etc/modsecurity.d/modsecurity-overrides.conf\n")
+	b.WriteString("Include /etc/modsecurity.d/crs-setup-overrides.conf\n")
+	b.WriteString("Include /etc/modsecurity.d/owasp-crs/crs-setup.conf\n")
+	b.WriteString("Include /etc/modsecurity.d/owasp-crs/rules/*.conf\n")
+	b.WriteString("Include /etc/modsecurity.d/rules.d/*.conf\n")
+	b.WriteString("Include /etc/modsecurity.d/rules.d/*/*.conf\n\n")
 
 	for _, group := range policy.RuleGroups {
 		b.WriteString(fmt.Sprintf("# === %s ===\n", group.Category))

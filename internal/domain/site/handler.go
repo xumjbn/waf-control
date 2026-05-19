@@ -7,14 +7,23 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/waf-control/internal/agent"
+	"github.com/waf-control/internal/deploy"
+	pb "github.com/waf-control/proto/agent"
 )
 
 type Handler struct {
-	repo *Repository
+	repo     *Repository
+	agentSvc *agent.Service
 }
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+func NewHandlerWithAgent(repo *Repository, agentSvc *agent.Service) *Handler {
+	return &Handler{repo: repo, agentSvc: agentSvc}
 }
 
 // List godoc
@@ -121,6 +130,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.broadcastSite(s)
 	writeJSON(w, http.StatusCreated, s)
 }
 
@@ -157,6 +167,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.broadcastSite(s)
 	writeJSON(w, http.StatusOK, s)
 }
 
@@ -179,11 +190,14 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s, _ := h.repo.GetByID(r.Context(), id)
+
 	if err := h.repo.Delete(r.Context(), id); err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "site not found"})
 		return
 	}
 
+	h.broadcastDelete(s)
 	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
@@ -292,4 +306,40 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(v)
+}
+
+func (h *Handler) broadcastSite(s *Site) {
+	if h.agentSvc == nil || s == nil {
+		return
+	}
+	var upstreams []string
+	if s.Upstream != nil {
+		_ = json.Unmarshal(s.Upstream, &upstreams)
+	}
+	siteCfg := &deploy.SiteConfig{
+		Domain:     s.Domain,
+		Protocol:   "http",
+		Upstreams:  upstreams,
+		WAFEnabled: s.WAFEnabled,
+	}
+	if s.SSLEnabled {
+		siteCfg.Protocol = "https"
+		siteCfg.SSLName = s.Name
+	}
+	nginxConfig := deploy.GenerateNginxPublic(siteCfg)
+	nodes := h.agentSvc.GetConnectedNodes()
+	for _, ns := range nodes {
+		h.agentSvc.BroadcastConfig(ns.Hostname, pb.ConfigUpdate_SITE, []byte(nginxConfig))
+	}
+	slog.Info("broadcast site config", "site_id", s.ID, "domain", s.Domain, "agents", len(nodes))
+}
+
+func (h *Handler) broadcastDelete(s *Site) {
+	if h.agentSvc == nil || s == nil {
+		return
+	}
+	payload := []byte("# delete:" + s.Domain + "\n")
+	for _, ns := range h.agentSvc.GetConnectedNodes() {
+		h.agentSvc.BroadcastConfig(ns.Hostname, pb.ConfigUpdate_SITE, payload)
+	}
 }

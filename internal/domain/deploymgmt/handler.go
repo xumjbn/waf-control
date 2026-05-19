@@ -65,9 +65,10 @@ func (h *Handler) DeploySite(w http.ResponseWriter, r *http.Request) {
 
 	// Generate configs
 	siteCfg := &deploy.SiteConfig{
-		Domain:    s.Domain,
-		Protocol:  "http",
-		Upstreams: upstreams,
+		Domain:     s.Domain,
+		Protocol:   "http",
+		Upstreams:  upstreams,
+		WAFEnabled: s.WAFEnabled,
 	}
 	if s.SSLEnabled {
 		siteCfg.Protocol = "https"
@@ -196,9 +197,10 @@ func (h *Handler) PreviewConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	siteCfg := &deploy.SiteConfig{
-		Domain:    s.Domain,
-		Protocol:  "http",
-		Upstreams: upstreams,
+		Domain:     s.Domain,
+		Protocol:   "http",
+		Upstreams:  upstreams,
+		WAFEnabled: s.WAFEnabled,
 	}
 	if s.SSLEnabled {
 		siteCfg.Protocol = "https"
