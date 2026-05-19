@@ -13,6 +13,7 @@ import (
 	"github.com/waf-control/internal/agent"
 	"github.com/waf-control/internal/config"
 	"github.com/waf-control/internal/domain/acl"
+	"github.com/waf-control/internal/domain/alert"
 	"github.com/waf-control/internal/domain/deploymgmt"
 	"github.com/waf-control/internal/domain/device"
 	"github.com/waf-control/internal/domain/instancemgmt"
@@ -90,6 +91,7 @@ func (s *Server) setupRouter() {
 			policy.RegisterRoutes(r, s.pool)
 			loadbalance.RegisterRoutes(r, s.pool)
 			acl.RegisterRoutes(r, s.pool)
+			alert.RegisterRoutes(r, s.pool)
 			ha.RegisterRoutes(r, s.pool)
 			operate.RegisterRoutes(r, s.pool)
 			reports.RegisterRoutes(r, s.pool)
