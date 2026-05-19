@@ -1,6 +1,10 @@
 package identity
 
 import (
+	"context"
+	"log/slog"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -8,6 +12,18 @@ import (
 )
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool, cfg config.AuthConfig) *Service {
+	// Self-heal schema drift: when a deploy lands the new code before its
+	// matching migrations have run, GetUserByUsername would crash at the
+	// SELECT (role_key/avatar/project missing) and every login returns 500.
+	// EnsureSchema makes the ALTERs idempotent and runs them on each boot,
+	// so a fresh code roll-out always lands on a compatible DB even if the
+	// migration runner is late.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := EnsureSchema(ctx, pool); err != nil {
+		slog.Warn("identity ensure schema failed; continuing", "error", err)
+	}
+
 	repo := NewRepository(pool)
 	svc := NewService(repo, cfg)
 	h := NewHandler(svc)
