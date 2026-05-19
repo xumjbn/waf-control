@@ -20,16 +20,28 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// userSelectColumns is shared by every users SELECT below. The trailing
+// avatar / project / last_login columns were added in migration 000008
+// (and last_login in 000007); they are nullable so a row that pre-dates the
+// migration scans cleanly into the *string / *time.Time fields.
+const userSelectColumns = `id, username, password, email, real_name, is_active,
+	avatar, project, last_login, created_at, updated_at`
+
+// scanUser populates a User from a single row that selected userSelectColumns
+// in order. Kept as a helper so query call sites stay short.
+func scanUser(row pgx.Row, u *User) error {
+	return row.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.RealName,
+		&u.IsActive, &u.Avatar, &u.Project, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt)
+}
+
 // --- Users ---
 
 func (r *Repository) GetUserByUsername(ctx context.Context, username string) (*User, error) {
-	row := r.pool.QueryRow(ctx, `
-		SELECT id, username, password, email, real_name, is_active, created_at, updated_at
-		FROM users WHERE username = $1`, username)
+	row := r.pool.QueryRow(ctx,
+		`SELECT `+userSelectColumns+` FROM users WHERE username = $1`, username)
 
 	var u User
-	err := row.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.RealName, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
-	if err != nil {
+	if err := scanUser(row, &u); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
@@ -39,13 +51,11 @@ func (r *Repository) GetUserByUsername(ctx context.Context, username string) (*U
 }
 
 func (r *Repository) GetUserByID(ctx context.Context, id int64) (*User, error) {
-	row := r.pool.QueryRow(ctx, `
-		SELECT id, username, password, email, real_name, is_active, created_at, updated_at
-		FROM users WHERE id = $1`, id)
+	row := r.pool.QueryRow(ctx,
+		`SELECT `+userSelectColumns+` FROM users WHERE id = $1`, id)
 
 	var u User
-	err := row.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.RealName, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
-	if err != nil {
+	if err := scanUser(row, &u); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
@@ -55,9 +65,8 @@ func (r *Repository) GetUserByID(ctx context.Context, id int64) (*User, error) {
 }
 
 func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, username, password, email, real_name, is_active, created_at, updated_at
-		FROM users ORDER BY id`)
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+userSelectColumns+` FROM users ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -66,7 +75,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.RealName, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := scanUser(rows, &u); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
 		users = append(users, u)
@@ -106,7 +115,9 @@ func (r *Repository) ListUsersEnriched(ctx context.Context) ([]UserEnriched, err
 
 func (r *Repository) ListRolesWithCount(ctx context.Context) ([]Role, []int, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT r.id, r.name, r.description, r.permissions, r.created_at, r.updated_at,
+		SELECT r.id, r.name, COALESCE(r.role_key,'') AS role_key, r.description,
+		       r.permissions, COALESCE(r.readonly,false) AS readonly,
+		       COALESCE(r.color,'') AS color, r.created_at, r.updated_at,
 		       (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count
 		FROM roles r ORDER BY r.id`)
 	if err != nil {
@@ -120,10 +131,11 @@ func (r *Repository) ListRolesWithCount(ctx context.Context) ([]Role, []int, err
 		var role Role
 		var permsJSON []byte
 		var count int
-		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &permsJSON, &role.CreatedAt, &role.UpdatedAt, &count); err != nil {
+		if err := rows.Scan(&role.ID, &role.Name, &role.RoleKey, &role.Description,
+			&permsJSON, &role.Readonly, &role.Color, &role.CreatedAt, &role.UpdatedAt, &count); err != nil {
 			return nil, nil, fmt.Errorf("scan role with count: %w", err)
 		}
-		_ = json.Unmarshal(permsJSON, &role.Permissions)
+		_ = unmarshalPermissions(permsJSON, &role.Permissions)
 		roles = append(roles, role)
 		counts = append(counts, count)
 	}
@@ -164,30 +176,60 @@ func (r *Repository) DeleteUser(ctx context.Context, id int64) error {
 
 // --- Roles ---
 
+// roleSelectColumns is the canonical projection used by every role read.
+// COALESCE keeps pre-000008 rows scannable into Go's non-pointer fields.
+const roleSelectColumns = `id, name, COALESCE(role_key,'') AS role_key,
+	description, permissions, COALESCE(readonly,false) AS readonly,
+	COALESCE(color,'') AS color, created_at, updated_at`
+
+func scanRole(row pgx.Row, role *Role) error {
+	var permsJSON []byte
+	if err := row.Scan(&role.ID, &role.Name, &role.RoleKey, &role.Description,
+		&permsJSON, &role.Readonly, &role.Color, &role.CreatedAt, &role.UpdatedAt); err != nil {
+		return err
+	}
+	return unmarshalPermissions(permsJSON, &role.Permissions)
+}
+
+// unmarshalPermissions decodes the JSONB permissions column, accepting
+// either the scalar string "*" (post-000008 wildcard) or a JSON array.
+// Scalar "*" becomes the single-element list ["*"] so the in-memory Role
+// stays uniform; Role.IsWildcard() collapses it back to the wire wildcard.
+func unmarshalPermissions(raw []byte, out *[]string) error {
+	if len(raw) == 0 {
+		*out = nil
+		return nil
+	}
+	// Try array first (the historical shape).
+	if err := json.Unmarshal(raw, out); err == nil {
+		return nil
+	}
+	// Fall back to scalar string.
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return fmt.Errorf("unmarshal permissions: %w", err)
+	}
+	*out = []string{s}
+	return nil
+}
+
 func (r *Repository) GetRoleByID(ctx context.Context, id int64) (*Role, error) {
-	row := r.pool.QueryRow(ctx, `
-		SELECT id, name, description, permissions, created_at, updated_at
-		FROM roles WHERE id = $1`, id)
+	row := r.pool.QueryRow(ctx,
+		`SELECT `+roleSelectColumns+` FROM roles WHERE id = $1`, id)
 
 	var role Role
-	var permsJSON []byte
-	err := row.Scan(&role.ID, &role.Name, &role.Description, &permsJSON, &role.CreatedAt, &role.UpdatedAt)
-	if err != nil {
+	if err := scanRole(row, &role); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get role by id: %w", err)
 	}
-	if err := json.Unmarshal(permsJSON, &role.Permissions); err != nil {
-		return nil, fmt.Errorf("unmarshal permissions: %w", err)
-	}
 	return &role, nil
 }
 
 func (r *Repository) ListRoles(ctx context.Context) ([]Role, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, name, description, permissions, created_at, updated_at
-		FROM roles ORDER BY id`)
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+roleSelectColumns+` FROM roles ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
@@ -196,12 +238,8 @@ func (r *Repository) ListRoles(ctx context.Context) ([]Role, error) {
 	var roles []Role
 	for rows.Next() {
 		var role Role
-		var permsJSON []byte
-		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &permsJSON, &role.CreatedAt, &role.UpdatedAt); err != nil {
+		if err := scanRole(rows, &role); err != nil {
 			return nil, fmt.Errorf("scan role: %w", err)
-		}
-		if err := json.Unmarshal(permsJSON, &role.Permissions); err != nil {
-			return nil, fmt.Errorf("unmarshal permissions: %w", err)
 		}
 		roles = append(roles, role)
 	}
@@ -252,7 +290,9 @@ func (r *Repository) DeleteRole(ctx context.Context, id int64) error {
 
 func (r *Repository) GetUserRoles(ctx context.Context, userID int64) ([]Role, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT r.id, r.name, r.description, r.permissions, r.created_at, r.updated_at
+		SELECT r.id, r.name, COALESCE(r.role_key,'') AS role_key, r.description,
+		       r.permissions, COALESCE(r.readonly,false) AS readonly,
+		       COALESCE(r.color,'') AS color, r.created_at, r.updated_at
 		FROM roles r
 		JOIN user_roles ur ON ur.role_id = r.id
 		WHERE ur.user_id = $1`, userID)
@@ -264,12 +304,8 @@ func (r *Repository) GetUserRoles(ctx context.Context, userID int64) ([]Role, er
 	var roles []Role
 	for rows.Next() {
 		var role Role
-		var permsJSON []byte
-		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &permsJSON, &role.CreatedAt, &role.UpdatedAt); err != nil {
+		if err := scanRole(rows, &role); err != nil {
 			return nil, fmt.Errorf("scan role: %w", err)
-		}
-		if err := json.Unmarshal(permsJSON, &role.Permissions); err != nil {
-			return nil, fmt.Errorf("unmarshal permissions: %w", err)
 		}
 		roles = append(roles, role)
 	}

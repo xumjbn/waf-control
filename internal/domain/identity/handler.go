@@ -113,7 +113,29 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, user)
+	// The SPA's auth.ts maps `roles[*].name` / `roles[*].modules` into the
+	// auth store; serve the modules-shaped DTO rather than the raw struct.
+	resp := MeResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Roles:    make([]RoleDTO, 0, len(user.Roles)),
+	}
+	if user.RealName != nil {
+		resp.RealName = *user.RealName
+	}
+	if user.Email != nil {
+		resp.Email = *user.Email
+	}
+	if user.Avatar != nil {
+		resp.Avatar = *user.Avatar
+	}
+	if user.Project != nil {
+		resp.Project = *user.Project
+	}
+	for _, role := range user.Roles {
+		resp.Roles = append(resp.Roles, role.ToDTO())
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // ListUsers godoc
@@ -133,12 +155,19 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	items := make([]UserListItem, 0, len(users))
 	for i := range users {
 		roles, _ := h.svc.repo.GetUserRoles(r.Context(), users[i].ID)
 		users[i].Roles = roles
+		items = append(items, ToUserListItem(users[i]))
 	}
 
-	writeJSON(w, http.StatusOK, users)
+	// Envelope matches waf-admin/src/mocks/identity.ts:
+	//   { items: UserListItem[], total: number }
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"total": len(items),
+	})
 }
 
 // CreateUser godoc
@@ -337,14 +366,26 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string "服务器内部错误"
 // @Router /identity/roles [get]
 func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request) {
-	roles, err := h.svc.repo.ListRoles(r.Context())
+	roles, counts, err := h.svc.repo.ListRolesWithCount(r.Context())
 	if err != nil {
 		slog.Error("list roles failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, roles)
+	items := make([]RoleDTO, 0, len(roles))
+	for i, role := range roles {
+		dto := role.ToDTO()
+		if i < len(counts) {
+			dto.UserCount = counts[i]
+		}
+		items = append(items, dto)
+	}
+	// Envelope matches the frontend MSW handler for /api/v1/identity/roles.
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"total": len(items),
+	})
 }
 
 // CreateRole godoc
