@@ -1,12 +1,18 @@
 package alert
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	repo := NewRepository(pool)
+	if err := repo.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("alert ensure schema failed", "error", err)
+	}
 	h := NewHandler(repo)
 
 	r.Route("/alert", func(r chi.Router) {
@@ -27,7 +33,10 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 
 		r.Route("/channels", func(r chi.Router) {
 			r.Get("/", h.ListChannels)
+			r.Post("/", h.CreateChannel)
 			r.Put("/{id}", h.UpdateChannel)
+			r.Delete("/{id}", h.DeleteChannel)
+			r.Post("/{id}/test", h.TestChannel)
 		})
 	})
 }

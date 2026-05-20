@@ -18,6 +18,22 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// EnsureSchema 启动时幂等补齐 alert_channels NW · 06 UI 字段（migration 000013）。
+func (r *Repository) EnsureSchema(ctx context.Context) error {
+	stmts := []string{
+		`ALTER TABLE alert_channels ADD COLUMN IF NOT EXISTS config      JSONB        NOT NULL DEFAULT '{}'::jsonb`,
+		`ALTER TABLE alert_channels ADD COLUMN IF NOT EXISTS description VARCHAR(255) NOT NULL DEFAULT ''`,
+		`ALTER TABLE alert_channels ADD COLUMN IF NOT EXISTS severity    VARCHAR(16)  NOT NULL DEFAULT 'warn'`,
+		`CREATE INDEX IF NOT EXISTS idx_alert_channels_kind ON alert_channels(kind)`,
+	}
+	for _, s := range stmts {
+		if _, err := r.pool.Exec(ctx, s); err != nil {
+			return fmt.Errorf("ensure alert_channels schema (%q): %w", s, err)
+		}
+	}
+	return nil
+}
+
 const policyCols = `id, name, COALESCE(description,''), metric, operator, threshold,
 	window_seconds, level, notify_targets, is_enabled, created_at, updated_at`
 
@@ -263,7 +279,13 @@ func (r *Repository) EventStats(ctx context.Context) (EventStats, error) {
 	return s, nil
 }
 
-const channelCols = `id, name, kind, COALESCE(target,''), is_enabled, created_at, updated_at`
+const channelCols = `id, name, kind, COALESCE(target,''), COALESCE(description,''),
+	COALESCE(severity,'warn'), COALESCE(config,'{}'::jsonb), is_enabled, created_at, updated_at`
+
+func scanChannel(s rowScanner, c *Channel) error {
+	return s.Scan(&c.ID, &c.Name, &c.Kind, &c.Target, &c.Description, &c.Severity,
+		&c.Config, &c.IsEnabled, &c.CreatedAt, &c.UpdatedAt)
+}
 
 func (r *Repository) ListChannels(ctx context.Context) ([]Channel, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+channelCols+` FROM alert_channels ORDER BY id`)
@@ -274,7 +296,7 @@ func (r *Repository) ListChannels(ctx context.Context) ([]Channel, error) {
 	out := make([]Channel, 0)
 	for rows.Next() {
 		var c Channel
-		if err := rows.Scan(&c.ID, &c.Name, &c.Kind, &c.Target, &c.IsEnabled, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := scanChannel(rows, &c); err != nil {
 			return nil, fmt.Errorf("scan alert channel: %w", err)
 		}
 		out = append(out, c)
@@ -282,9 +304,44 @@ func (r *Repository) ListChannels(ctx context.Context) ([]Channel, error) {
 	return out, nil
 }
 
+func (r *Repository) GetChannel(ctx context.Context, id int64) (*Channel, error) {
+	var c Channel
+	if err := scanChannel(r.pool.QueryRow(ctx, `SELECT `+channelCols+` FROM alert_channels WHERE id = $1`, id), &c); err != nil {
+		return nil, fmt.Errorf("get alert channel: %w", err)
+	}
+	return &c, nil
+}
+
+func (r *Repository) CreateChannel(ctx context.Context, req CreateChannelRequest) (*Channel, error) {
+	kind := req.Kind
+	if kind == "" {
+		kind = ChannelKindWebhook
+	}
+	severity := req.Severity
+	if severity == "" {
+		severity = "warn"
+	}
+	enabled := true
+	if req.IsEnabled != nil {
+		enabled = *req.IsEnabled
+	}
+	cfg := req.Config
+	if len(cfg) == 0 {
+		cfg = json.RawMessage(`{}`)
+	}
+	query := `INSERT INTO alert_channels (name, kind, target, description, severity, config, is_enabled)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		RETURNING ` + channelCols
+	var c Channel
+	if err := scanChannel(r.pool.QueryRow(ctx, query, req.Name, kind, req.Target, req.Description, severity, cfg, enabled), &c); err != nil {
+		return nil, fmt.Errorf("create alert channel: %w", err)
+	}
+	return &c, nil
+}
+
 func (r *Repository) UpdateChannel(ctx context.Context, id int64, req UpdateChannelRequest) (*Channel, error) {
-	sets := make([]string, 0, 4)
-	args := make([]any, 0, 5)
+	sets := make([]string, 0, 8)
+	args := make([]any, 0, 9)
 	idx := 1
 	if req.Name != nil {
 		sets = append(sets, fmt.Sprintf("name = $%d", idx))
@@ -301,24 +358,68 @@ func (r *Repository) UpdateChannel(ctx context.Context, id int64, req UpdateChan
 		args = append(args, *req.Target)
 		idx++
 	}
+	if req.Description != nil {
+		sets = append(sets, fmt.Sprintf("description = $%d", idx))
+		args = append(args, *req.Description)
+		idx++
+	}
+	if req.Severity != nil {
+		sets = append(sets, fmt.Sprintf("severity = $%d", idx))
+		args = append(args, *req.Severity)
+		idx++
+	}
+	if len(req.Config) > 0 {
+		sets = append(sets, fmt.Sprintf("config = $%d", idx))
+		args = append(args, req.Config)
+		idx++
+	}
 	if req.IsEnabled != nil {
 		sets = append(sets, fmt.Sprintf("is_enabled = $%d", idx))
 		args = append(args, *req.IsEnabled)
 		idx++
 	}
 	if len(sets) == 0 {
-		return nil, fmt.Errorf("no fields to update")
+		return r.GetChannel(ctx, id)
 	}
 	sets = append(sets, "updated_at = NOW()")
 	args = append(args, id)
 	query := fmt.Sprintf(`UPDATE alert_channels SET %s WHERE id = $%d RETURNING %s`,
 		strings.Join(sets, ", "), idx, channelCols)
-	row := r.pool.QueryRow(ctx, query, args...)
 	var c Channel
-	if err := row.Scan(&c.ID, &c.Name, &c.Kind, &c.Target, &c.IsEnabled, &c.CreatedAt, &c.UpdatedAt); err != nil {
+	if err := scanChannel(r.pool.QueryRow(ctx, query, args...), &c); err != nil {
 		return nil, fmt.Errorf("update alert channel: %w", err)
 	}
 	return &c, nil
+}
+
+func (r *Repository) DeleteChannel(ctx context.Context, id int64) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM alert_channels WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete alert channel: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("channel not found")
+	}
+	return nil
+}
+
+// TestChannel 触发一次"测试发送"占位实现：写一条 INFO 级 alert_events 记录指向此 channel。
+// 真实的 SMTP/webhook 调用由 reporter/notifier 后台 worker 异步触发；这里只确认"工单已创建"。
+func (r *Repository) TestChannel(ctx context.Context, id int64) (*Event, error) {
+	ch, err := r.GetChannel(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	row := r.pool.QueryRow(ctx, `INSERT INTO alert_events
+		(policy_id, level, kind, target, message, status, occurred_at)
+		VALUES (NULL, 'info', $1, $2, $3, 'open', NOW())
+		RETURNING `+eventCols,
+		ch.Kind, ch.Target, fmt.Sprintf("【测试】渠道 %s 联通性自检", ch.Name))
+	ev, err := scanEvent(row)
+	if err != nil {
+		return nil, fmt.Errorf("test channel: %w", err)
+	}
+	return &ev, nil
 }
 
 type rowScanner interface {

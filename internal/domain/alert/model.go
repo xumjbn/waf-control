@@ -1,6 +1,9 @@
 package alert
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Policy struct {
 	ID            int64     `json:"id"`
@@ -80,19 +83,59 @@ type EventStats struct {
 	Today  int64 `json:"today"`
 }
 
+// ChannelKind 是 alert_channels.kind 的合法集合。
+// 增加新 kind 时同步 ChannelKinds() 和前端 PageAlert 渠道选项。
+const (
+	ChannelKindEmail     = "email"
+	ChannelKindWeChat    = "wechat"
+	ChannelKindDingTalk  = "dingtalk"
+	ChannelKindPagerDuty = "pagerduty"
+	ChannelKindWebhook   = "webhook"
+	ChannelKindSMS       = "sms"
+)
+
+func ChannelKinds() []string {
+	return []string{
+		ChannelKindEmail, ChannelKindWeChat, ChannelKindDingTalk,
+		ChannelKindPagerDuty, ChannelKindWebhook, ChannelKindSMS,
+	}
+}
+
+// Channel 是单条告警渠道。Config 用于各 kind 的具体参数：
+//   email     -> { "from": "...", "smtp_host": "...", ... }
+//   wechat    -> { "corp_id": "...", "agent_id": "...", "secret": "..." }
+//   pagerduty -> { "service_key": "..." }
+//   webhook   -> { "url": "...", "headers": {...}, "secret": "..." }
+//   sms       -> { "provider": "aliyun"|"twilio", "key": "...", "tpl": "..." }
 type Channel struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Kind      string    `json:"kind"`
-	Target    string    `json:"target"`
-	IsEnabled bool      `json:"is_enabled"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          int64           `json:"id"`
+	Name        string          `json:"name"`
+	Kind        string          `json:"kind"`
+	Target      string          `json:"target"`
+	Description string          `json:"description"`
+	Severity    string          `json:"severity"`
+	Config      json.RawMessage `json:"config,omitempty"`
+	IsEnabled   bool            `json:"is_enabled"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+type CreateChannelRequest struct {
+	Name        string          `json:"name"`
+	Kind        string          `json:"kind"`
+	Target      string          `json:"target"`
+	Description string          `json:"description"`
+	Severity    string          `json:"severity"`
+	Config      json.RawMessage `json:"config"`
+	IsEnabled   *bool           `json:"is_enabled"`
 }
 
 type UpdateChannelRequest struct {
-	Name      *string `json:"name"`
-	Kind      *string `json:"kind"`
-	Target    *string `json:"target"`
-	IsEnabled *bool   `json:"is_enabled"`
+	Name        *string         `json:"name"`
+	Kind        *string         `json:"kind"`
+	Target      *string         `json:"target"`
+	Description *string         `json:"description"`
+	Severity    *string         `json:"severity"`
+	Config      json.RawMessage `json:"config"`
+	IsEnabled   *bool           `json:"is_enabled"`
 }
