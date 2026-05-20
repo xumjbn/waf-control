@@ -1,0 +1,3 @@
+BEGIN;
+DROP TABLE IF EXISTS instance_configs;
+COMMIT;

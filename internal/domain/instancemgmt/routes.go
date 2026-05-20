@@ -21,12 +21,23 @@ func RegisterRoutes(r chi.Router, agentSvc *agent.Service) {
 }
 
 // RegisterRoutesWithDB additionally mounts /clusters CRUD + /ha-groups CRUD
-// (needs Postgres). Server bootstrap should call this when pool is available.
+// + /instances/{nodeId}/config (needs Postgres). Server bootstrap should
+// call this when pool is available.
 func RegisterRoutesWithDB(r chi.Router, agentSvc *agent.Service, pool *pgxpool.Pool) {
 	RegisterRoutes(r, agentSvc)
 	if pool == nil {
 		return
 	}
+
+	// 实例管理员配置（instance_configs）—— 与 NodeState 运行时观测值解耦
+	cfgStore := NewConfigStore(pool)
+	if err := cfgStore.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("instance_configs ensure schema failed", "err", err)
+	}
+	cfgH := NewConfigHandler(cfgStore)
+	r.Get("/instances/{nodeId}/config", cfgH.Get)
+	r.Put("/instances/{nodeId}/config", cfgH.Put)
+
 	clusterStore := NewClusterStore(pool)
 	if err := clusterStore.EnsureSchema(context.Background()); err != nil {
 		slog.Warn("clusters ensure schema failed", "err", err)
