@@ -31,6 +31,7 @@ type Policy struct {
 	Builtin    bool       `json:"builtin"`
 	Hits       int64      `json:"hits"`
 	LastHitAt  *time.Time `json:"last_hit_at,omitempty"`
+	ModsecID   string     `json:"modsec_id,omitempty"` // 来源于 deploy/modsec/rules.d/.../<id>-*.conf
 }
 
 type Rule struct {

@@ -18,6 +18,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 // EnsureSchema 启动时幂等补齐 policies 表的 NW · 04 UI 字段（migration 000012）。
+// 真正的内置规则种子由 SyncFromModsec 负责（解析 deploy/modsec/rules.d/）。
 func (r *Repository) EnsureSchema(ctx context.Context) error {
 	stmts := []string{
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS scope       VARCHAR(64) NOT NULL DEFAULT '全部站点'`,
@@ -27,9 +28,12 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS builtin     BOOLEAN     NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS hits        BIGINT      NOT NULL DEFAULT 0`,
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS last_hit_at TIMESTAMPTZ`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS modsec_id   VARCHAR(32)`,
 		`CREATE INDEX IF NOT EXISTS idx_policies_scope    ON policies(scope)`,
 		`CREATE INDEX IF NOT EXISTS idx_policies_priority ON policies(priority)`,
 		`CREATE INDEX IF NOT EXISTS idx_policies_builtin  ON policies(builtin)`,
+		// modsec_id 必须唯一（且允许 NULL —— 用户自建规则没有 modsec_id）
+		`CREATE UNIQUE INDEX IF NOT EXISTS uq_policies_modsec_id ON policies(modsec_id) WHERE modsec_id IS NOT NULL`,
 	}
 	for _, s := range stmts {
 		if _, err := r.pool.Exec(ctx, s); err != nil {
@@ -42,14 +46,16 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 const policySelectCols = `id, name, category_id, severity, action, is_enabled,
 	COALESCE(description,''), created_at, updated_at,
 	COALESCE(scope,'全部站点'), COALESCE(field,''), COALESCE(match_value,''),
-	COALESCE(priority,100), COALESCE(builtin,false), COALESCE(hits,0), last_hit_at`
+	COALESCE(priority,100), COALESCE(builtin,false), COALESCE(hits,0), last_hit_at,
+	COALESCE(modsec_id,'')`
 
 func scanPolicy(rs interface {
 	Scan(...interface{}) error
 }, pol *Policy) error {
 	return rs.Scan(&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
 		&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt,
-		&pol.Scope, &pol.Field, &pol.Match, &pol.Priority, &pol.Builtin, &pol.Hits, &pol.LastHitAt)
+		&pol.Scope, &pol.Field, &pol.Match, &pol.Priority, &pol.Builtin, &pol.Hits, &pol.LastHitAt,
+		&pol.ModsecID)
 }
 
 // --- Categories ---
