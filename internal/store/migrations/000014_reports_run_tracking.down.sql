@@ -1,0 +1,13 @@
+BEGIN;
+ALTER TABLE report_manual   DROP COLUMN IF EXISTS file_size;
+ALTER TABLE report_manual   DROP COLUMN IF EXISTS file_path;
+ALTER TABLE report_timing   DROP COLUMN IF EXISTS is_enabled;
+ALTER TABLE report_timing   DROP COLUMN IF EXISTS next_run_at;
+ALTER TABLE report_timing   DROP COLUMN IF EXISTS last_run_at;
+ALTER TABLE report_timing   DROP COLUMN IF EXISTS cron;
+ALTER TABLE report_combined DROP COLUMN IF EXISTS is_enabled;
+ALTER TABLE report_combined DROP COLUMN IF EXISTS last_run_at;
+ALTER TABLE report_custom   DROP COLUMN IF EXISTS is_enabled;
+ALTER TABLE report_custom   DROP COLUMN IF EXISTS next_run_at;
+ALTER TABLE report_custom   DROP COLUMN IF EXISTS last_run_at;
+COMMIT;
