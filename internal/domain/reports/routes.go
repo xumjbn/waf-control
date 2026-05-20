@@ -1,15 +1,26 @@
 package reports
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	repo := NewRepository(pool)
+	if err := repo.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("reports ensure schema failed", "error", err)
+	}
 	h := NewHandler(repo)
 
 	r.Route("/reports", func(r chi.Router) {
+		// 统一列表 + 执行 + 下载（NW · 08 报表中心首页消费）
+		r.Get("/all", h.ListAll)
+		r.Post("/{type}/{id}/run", h.RunReport)
+		r.Get("/{type}/{id}/download", h.DownloadReport)
+
 		// Custom reports
 		r.Route("/custom", func(r chi.Router) {
 			r.Get("/", h.ListCustom)
