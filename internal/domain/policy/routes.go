@@ -4,31 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// modsecRulesDir 决定从哪里读取 modsec .conf 规则做 builtin 种子。
-// 优先级：env WAF_MODSEC_RULES_DIR → /etc/waf/modsec-rules（容器） →
-// ../deploy/modsec/rules.d（dev：相对 cmd/server/） → ./deploy/modsec/rules.d（dev：项目根）。
-func modsecRulesDir() string {
-	if v := os.Getenv("WAF_MODSEC_RULES_DIR"); v != "" {
-		return v
-	}
-	for _, p := range []string{
-		"/etc/waf/modsec-rules",
-		"../../deploy/modsec/rules.d",
-		"../deploy/modsec/rules.d",
-		"./deploy/modsec/rules.d",
-	} {
-		if st, err := os.Stat(p); err == nil && st.IsDir() {
-			return p
-		}
-	}
-	return ""
-}
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	repo := NewRepository(pool)
@@ -36,19 +15,14 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		slog.Warn("policy ensure schema failed", "error", err)
 	}
 
-	// 启动期把 deploy/modsec/rules.d 同步成 builtin policies。
-	// dir 找不到也不致命（用户可以纯手工新建规则），只 warn。
-	if dir := modsecRulesDir(); dir != "" {
-		ins, upd, total, err := repo.SyncFromDir(context.Background(), dir)
-		if err != nil {
-			slog.Warn("modsec rules sync failed", "dir", dir, "err", err)
-		} else {
-			slog.Info("modsec rules synced",
-				"dir", dir, "inserted", ins, "updated", upd, "total", total)
-		}
+	// 启动期自动 sync 一次（数据源自动选择：env / disk / embed）。
+	// embed 永远可用，所以这里不再可能因为找不到规则目录而失败。
+	ins, upd, total, source, err := repo.SyncFromFS(context.Background())
+	if err != nil {
+		slog.Warn("modsec rules sync failed", "source", source, "err", err)
 	} else {
-		slog.Warn("no modsec rules dir found; builtin policies will be empty until POST /policies/sync-builtin",
-			"env", "WAF_MODSEC_RULES_DIR")
+		slog.Info("modsec rules synced",
+			"source", source, "inserted", ins, "updated", upd, "total", total)
 	}
 
 	h := NewHandler(repo)
@@ -64,20 +38,14 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		r.Get("/", h.ListPolicies)
 		r.Post("/", h.CreatePolicy)
 		r.Post("/sync-builtin", func(w http.ResponseWriter, req *http.Request) {
-			dir := modsecRulesDir()
-			if dir == "" {
-				writeJSON(w, http.StatusBadRequest, map[string]string{
-					"error": "modsec rules dir not configured (env WAF_MODSEC_RULES_DIR)",
-				})
-				return
-			}
-			ins, upd, total, err := repo.SyncFromDir(req.Context(), dir)
+			ins, upd, total, source, err := repo.SyncFromFS(req.Context())
 			if err != nil {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				writeJSON(w, http.StatusInternalServerError,
+					map[string]string{"error": err.Error(), "source": source})
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{
-				"dir":      dir,
+				"source":   source,
 				"inserted": ins,
 				"updated":  upd,
 				"total":    total,
