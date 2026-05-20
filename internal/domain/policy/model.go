@@ -32,6 +32,7 @@ type Policy struct {
 	Hits       int64      `json:"hits"`
 	LastHitAt  *time.Time `json:"last_hit_at,omitempty"`
 	ModsecID   string     `json:"modsec_id,omitempty"` // 来源于 deploy/modsec/rules.d/.../<id>-*.conf
+	Category   string     `json:"category"`            // 防护模块：sqli/xss/rce/lfi-rfi/bot/rate-limit/ip-reputation/virtual-patches/custom
 }
 
 type Rule struct {
@@ -114,6 +115,7 @@ type ListPolicyParams struct {
 	Page       int
 	PageSize   int
 	CategoryID *int64
+	Category   string // 防护模块字符串（sqli/xss/rce/.../custom）
 	Severity   string
 	Action     string
 	IsEnabled  *bool
