@@ -1,6 +1,9 @@
 package instancemgmt
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -17,8 +20,8 @@ func RegisterRoutes(r chi.Router, agentSvc *agent.Service) {
 	r.Post("/instances/register-intent", h.RegisterNodeIntent)
 }
 
-// RegisterRoutesWithDB additionally mounts /clusters CRUD (needs Postgres).
-// Server bootstrap should call this when pool is available.
+// RegisterRoutesWithDB additionally mounts /clusters CRUD + /ha-groups CRUD
+// (needs Postgres). Server bootstrap should call this when pool is available.
 func RegisterRoutesWithDB(r chi.Router, agentSvc *agent.Service, pool *pgxpool.Pool) {
 	RegisterRoutes(r, agentSvc)
 	if pool == nil {
@@ -33,5 +36,21 @@ func RegisterRoutesWithDB(r chi.Router, agentSvc *agent.Service, pool *pgxpool.P
 		r.Delete("/{id}", ch.Delete)
 		r.Put("/{id}/nodes/{nodeId}", ch.AssignNode)
 		r.Delete("/{id}/nodes/{nodeId}", ch.RemoveNode)
+	})
+
+	haStore := NewHAStore(pool)
+	if err := haStore.EnsureSchema(context.Background()); err != nil {
+		// 启动期失败时只警告：migrations/000017 跑过的话表已经在；
+		// 没跑也别让整个 server 崩掉 —— /ha-groups 后续会自然 500。
+		slog.Warn("ha_groups ensure schema failed", "err", err)
+	}
+	hh := NewHAHandler(haStore)
+	r.Route("/ha-groups", func(r chi.Router) {
+		r.Get("/", hh.List)
+		r.Post("/", hh.Create)
+		r.Get("/{id}", hh.Get)
+		r.Put("/{id}", hh.Update)
+		r.Delete("/{id}", hh.Delete)
+		r.Post("/{id}/switchover", hh.Switchover)
 	})
 }

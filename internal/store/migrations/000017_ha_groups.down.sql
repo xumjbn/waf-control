@@ -1,0 +1,4 @@
+BEGIN;
+DROP INDEX IF EXISTS idx_ha_groups_state;
+DROP TABLE IF EXISTS ha_groups;
+COMMIT;
