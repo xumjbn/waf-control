@@ -343,3 +343,24 @@ func (h *Handler) broadcastDelete(s *Site) {
 		h.agentSvc.BroadcastConfig(ns.Hostname, pb.ConfigUpdate_SITE, payload)
 	}
 }
+
+// UpdateMetrics — PUT /sites/{id}/metrics
+// 由内部 stats 管道调用，把 rps / blocked_rate / instance_label 写回 sites 表。
+// 不在公网 token 校验白名单内，但走标准 BearerAuth；运营也可手动写。
+func (h *Handler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	var req UpdateMetricsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if err := h.repo.UpdateMetrics(r.Context(), id, req); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}

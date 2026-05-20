@@ -17,8 +17,22 @@ type Site struct {
 	Status      string          `json:"status"`
 	WAFEnabled  bool            `json:"waf_enabled"`
 	Description string          `json:"description,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	// Runtime/binding cache for NW · 03 列表展示。
+	// 监控管道（stats job）写回；UI 列表直接读，免 N+1 跨表 join。
+	RPS              float64    `json:"rps"`
+	BlockedRate      float64    `json:"blocked_rate"`
+	InstanceLabel    string     `json:"instance_label"`
+	MetricsUpdatedAt *time.Time `json:"metrics_updated_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+// UpdateMetricsRequest is the body of PUT /sites/{id}/metrics — pushed by the
+// stats pipeline. UI never sends this directly.
+type UpdateMetricsRequest struct {
+	RPS           float64 `json:"rps"`
+	BlockedRate   float64 `json:"blocked_rate"`
+	InstanceLabel string  `json:"instance_label,omitempty"`
 }
 
 type CreateRequest struct {

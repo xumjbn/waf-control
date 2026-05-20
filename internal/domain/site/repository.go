@@ -44,7 +44,9 @@ func (r *Repository) List(ctx context.Context, p ListParams) ([]Site, int, error
 
 	offset := (p.Page - 1) * p.PageSize
 	query := fmt.Sprintf(`SELECT id, name, domain, listen_port, ssl_enabled, COALESCE(ssl_cert,''), COALESCE(ssl_key,''),
-		upstream, status, waf_enabled, COALESCE(description,''), created_at, updated_at
+		upstream, status, waf_enabled, COALESCE(description,''),
+		COALESCE(rps, 0), COALESCE(blocked_rate, 0), COALESCE(instance_label, ''),
+		metrics_updated_at, created_at, updated_at
 		FROM sites %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, p.PageSize, offset)
 
@@ -58,7 +60,9 @@ func (r *Repository) List(ctx context.Context, p ListParams) ([]Site, int, error
 	for rows.Next() {
 		var s Site
 		if err := rows.Scan(&s.ID, &s.Name, &s.Domain, &s.ListenPort, &s.SSLEnabled, &s.SSLCert, &s.SSLKey,
-			&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description,
+			&s.RPS, &s.BlockedRate, &s.InstanceLabel, &s.MetricsUpdatedAt,
+			&s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan site: %w", err)
 		}
 		sites = append(sites, s)
@@ -69,10 +73,14 @@ func (r *Repository) List(ctx context.Context, p ListParams) ([]Site, int, error
 func (r *Repository) GetByID(ctx context.Context, id int64) (*Site, error) {
 	var s Site
 	err := r.pool.QueryRow(ctx, `SELECT id, name, domain, listen_port, ssl_enabled, COALESCE(ssl_cert,''), COALESCE(ssl_key,''),
-		upstream, status, waf_enabled, COALESCE(description,''), created_at, updated_at
+		upstream, status, waf_enabled, COALESCE(description,''),
+		COALESCE(rps, 0), COALESCE(blocked_rate, 0), COALESCE(instance_label, ''),
+		metrics_updated_at, created_at, updated_at
 		FROM sites WHERE id = $1`, id).Scan(
 		&s.ID, &s.Name, &s.Domain, &s.ListenPort, &s.SSLEnabled, &s.SSLCert, &s.SSLKey,
-		&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description, &s.CreatedAt, &s.UpdatedAt)
+		&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description,
+			&s.RPS, &s.BlockedRate, &s.InstanceLabel, &s.MetricsUpdatedAt,
+			&s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get site: %w", err)
 	}
@@ -97,10 +105,14 @@ func (r *Repository) Create(ctx context.Context, req CreateRequest) (*Site, erro
 	err := r.pool.QueryRow(ctx, `INSERT INTO sites (name, domain, listen_port, ssl_enabled, ssl_cert, ssl_key, upstream, waf_enabled, description)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, name, domain, listen_port, ssl_enabled, COALESCE(ssl_cert,''), COALESCE(ssl_key,''),
-		upstream, status, waf_enabled, COALESCE(description,''), created_at, updated_at`,
+		upstream, status, waf_enabled, COALESCE(description,''),
+		COALESCE(rps, 0), COALESCE(blocked_rate, 0), COALESCE(instance_label, ''),
+		metrics_updated_at, created_at, updated_at`,
 		req.Name, req.Domain, listenPort, req.SSLEnabled, req.SSLCert, req.SSLKey, upstream, wafEnabled, req.Description).Scan(
 		&s.ID, &s.Name, &s.Domain, &s.ListenPort, &s.SSLEnabled, &s.SSLCert, &s.SSLKey,
-		&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description, &s.CreatedAt, &s.UpdatedAt)
+		&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description,
+			&s.RPS, &s.BlockedRate, &s.InstanceLabel, &s.MetricsUpdatedAt,
+			&s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create site: %w", err)
 	}
@@ -170,14 +182,18 @@ func (r *Repository) Update(ctx context.Context, id int64, req UpdateRequest) (*
 	sets = append(sets, "updated_at = NOW()")
 	query := fmt.Sprintf(`UPDATE sites SET %s WHERE id = $%d
 		RETURNING id, name, domain, listen_port, ssl_enabled, COALESCE(ssl_cert,''), COALESCE(ssl_key,''),
-		upstream, status, waf_enabled, COALESCE(description,''), created_at, updated_at`,
+		upstream, status, waf_enabled, COALESCE(description,''),
+		COALESCE(rps, 0), COALESCE(blocked_rate, 0), COALESCE(instance_label, ''),
+		metrics_updated_at, created_at, updated_at`,
 		strings.Join(sets, ", "), argIdx)
 	args = append(args, id)
 
 	var s Site
 	err := r.pool.QueryRow(ctx, query, args...).Scan(
 		&s.ID, &s.Name, &s.Domain, &s.ListenPort, &s.SSLEnabled, &s.SSLCert, &s.SSLKey,
-		&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description, &s.CreatedAt, &s.UpdatedAt)
+		&s.Upstream, &s.Status, &s.WAFEnabled, &s.Description,
+			&s.RPS, &s.BlockedRate, &s.InstanceLabel, &s.MetricsUpdatedAt,
+			&s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("update site: %w", err)
 	}
@@ -231,6 +247,39 @@ func (r *Repository) UnbindDevice(ctx context.Context, siteID, deviceID int64) e
 		siteID, deviceID)
 	if err != nil {
 		return fmt.Errorf("unbind device: %w", err)
+	}
+	return nil
+}
+
+// UpdateMetrics 由监控管道调用：把站点 rps/blocked_rate/instance_label 直接写
+// 进 sites 表，避免 list 接口跨表 join。NW · 03 UI 列表直接读这些缓存列。
+func (r *Repository) UpdateMetrics(ctx context.Context, id int64, req UpdateMetricsRequest) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE sites
+		   SET rps = $1,
+		       blocked_rate = $2,
+		       instance_label = COALESCE(NULLIF($3,''), instance_label),
+		       metrics_updated_at = NOW()
+		 WHERE id = $4`,
+		req.RPS, req.BlockedRate, req.InstanceLabel, id)
+	if err != nil {
+		return fmt.Errorf("update site metrics: %w", err)
+	}
+	return nil
+}
+
+// EnsureSchema 兜底跑 000010 的 ALTER —— 部署 race 时让 SELECT 不报缺列。
+func (r *Repository) EnsureSchema(ctx context.Context) error {
+	stmts := []string{
+		`ALTER TABLE sites ADD COLUMN IF NOT EXISTS rps           DOUBLE PRECISION NOT NULL DEFAULT 0`,
+		`ALTER TABLE sites ADD COLUMN IF NOT EXISTS blocked_rate  DOUBLE PRECISION NOT NULL DEFAULT 0`,
+		`ALTER TABLE sites ADD COLUMN IF NOT EXISTS instance_label VARCHAR(64) NOT NULL DEFAULT ''`,
+		`ALTER TABLE sites ADD COLUMN IF NOT EXISTS metrics_updated_at TIMESTAMPTZ`,
+	}
+	for _, s := range stmts {
+		if _, err := r.pool.Exec(ctx, s); err != nil {
+			return fmt.Errorf("ensure site schema (%s): %w", s, err)
+		}
 	}
 	return nil
 }
