@@ -296,10 +296,10 @@ func (r *Repository) SyncFromFS(ctx context.Context) (int, int, int, string, err
 				UPDATE policies
 				   SET name=$1, severity=$2, action=$3, description=$4,
 				       scope=$5, field=$6, match_value=$7, priority=$8,
-				       builtin=TRUE, updated_at=NOW()
-				 WHERE id=$9`,
+				       category=$9, builtin=TRUE, updated_at=NOW()
+				 WHERE id=$10`,
 				m.Name, m.Severity, m.Action, m.Description,
-				"全部站点", m.Field, m.Match, m.Priority, existingID)
+				"全部站点", m.Field, m.Match, m.Priority, m.Category, existingID)
 			if err != nil {
 				return inserted, updated, len(rules), source,
 					fmt.Errorf("update builtin %s: %w", m.ModsecID, err)
@@ -309,10 +309,10 @@ func (r *Repository) SyncFromFS(ctx context.Context) (int, int, int, string, err
 			_, err := r.pool.Exec(ctx, `
 				INSERT INTO policies
 					(name, severity, action, is_enabled, description,
-					 scope, field, match_value, priority, builtin, modsec_id)
-				VALUES ($1,$2,$3,TRUE,$4,$5,$6,$7,$8,TRUE,$9)`,
+					 scope, field, match_value, priority, builtin, modsec_id, category)
+				VALUES ($1,$2,$3,TRUE,$4,$5,$6,$7,$8,TRUE,$9,$10)`,
 				m.Name, m.Severity, m.Action, m.Description,
-				"全部站点", m.Field, m.Match, m.Priority, m.ModsecID)
+				"全部站点", m.Field, m.Match, m.Priority, m.ModsecID, m.Category)
 			if err != nil {
 				return inserted, updated, len(rules), source,
 					fmt.Errorf("insert builtin %s: %w", m.ModsecID, err)

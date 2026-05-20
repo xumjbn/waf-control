@@ -168,6 +168,7 @@ func (h *Handler) ListPolicies(w http.ResponseWriter, r *http.Request) {
 	params := ListPolicyParams{
 		Page:     page,
 		PageSize: pageSize,
+		Category: r.URL.Query().Get("category"),
 		Severity: r.URL.Query().Get("severity"),
 		Action:   r.URL.Query().Get("action"),
 		Search:   r.URL.Query().Get("search"),

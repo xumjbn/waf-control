@@ -29,9 +29,12 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS hits        BIGINT      NOT NULL DEFAULT 0`,
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS last_hit_at TIMESTAMPTZ`,
 		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS modsec_id   VARCHAR(32)`,
+		// migration 000019：防护模块字符串（sqli/xss/rce/.../custom）
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS category    VARCHAR(32) NOT NULL DEFAULT 'custom'`,
 		`CREATE INDEX IF NOT EXISTS idx_policies_scope    ON policies(scope)`,
 		`CREATE INDEX IF NOT EXISTS idx_policies_priority ON policies(priority)`,
 		`CREATE INDEX IF NOT EXISTS idx_policies_builtin  ON policies(builtin)`,
+		`CREATE INDEX IF NOT EXISTS idx_policies_category ON policies(category)`,
 		// modsec_id 必须唯一（且允许 NULL —— 用户自建规则没有 modsec_id）
 		`CREATE UNIQUE INDEX IF NOT EXISTS uq_policies_modsec_id ON policies(modsec_id) WHERE modsec_id IS NOT NULL`,
 	}
@@ -47,7 +50,7 @@ const policySelectCols = `id, name, category_id, severity, action, is_enabled,
 	COALESCE(description,''), created_at, updated_at,
 	COALESCE(scope,'全部站点'), COALESCE(field,''), COALESCE(match_value,''),
 	COALESCE(priority,100), COALESCE(builtin,false), COALESCE(hits,0), last_hit_at,
-	COALESCE(modsec_id,'')`
+	COALESCE(modsec_id,''), COALESCE(category,'custom')`
 
 func scanPolicy(rs interface {
 	Scan(...interface{}) error
@@ -55,7 +58,7 @@ func scanPolicy(rs interface {
 	return rs.Scan(&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
 		&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt,
 		&pol.Scope, &pol.Field, &pol.Match, &pol.Priority, &pol.Builtin, &pol.Hits, &pol.LastHitAt,
-		&pol.ModsecID)
+		&pol.ModsecID, &pol.Category)
 }
 
 // --- Categories ---
@@ -152,6 +155,12 @@ func (r *Repository) ListPolicies(ctx context.Context, p ListPolicyParams) ([]Po
 	if p.CategoryID != nil {
 		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argIdx))
 		args = append(args, *p.CategoryID)
+		argIdx++
+	}
+	// 防护模块字符串过滤（migration 000019）：sqli/xss/rce/...
+	if p.Category != "" {
+		conditions = append(conditions, fmt.Sprintf("category = $%d", argIdx))
+		args = append(args, p.Category)
 		argIdx++
 	}
 	if p.Severity != "" {
