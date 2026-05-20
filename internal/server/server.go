@@ -97,7 +97,8 @@ func (s *Server) setupRouter() {
 			reports.RegisterRoutes(r, s.pool)
 			security.RegisterRoutes(r, s.pool)
 			system.RegisterRoutes(r, s.pool)
-			logs.RegisterRoutes(r, s.pool)
+			// logs：注入 acl 仓库，启用 /logs/attack/{id}/ban、whitelist 联动
+			logs.RegisterRoutesWithACL(r, s.pool, acl.NewRepository(s.pool))
 
 			// Keystone v3 风格的别名路由 (/users, /roles, /projects)
 			// 适配 waf-admin 前端 user 模块（OpenStack 风格 wrap 请求/响应）
