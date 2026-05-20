@@ -27,7 +27,11 @@ func RegisterRoutesWithDB(r chi.Router, agentSvc *agent.Service, pool *pgxpool.P
 	if pool == nil {
 		return
 	}
-	ch := NewClusterHandler(NewClusterStore(pool))
+	clusterStore := NewClusterStore(pool)
+	if err := clusterStore.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("clusters ensure schema failed", "err", err)
+	}
+	ch := NewClusterHandler(clusterStore)
 	r.Route("/clusters", func(r chi.Router) {
 		r.Get("/", ch.List)
 		r.Post("/", ch.Create)

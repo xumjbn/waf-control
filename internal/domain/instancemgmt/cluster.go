@@ -41,6 +41,47 @@ func NewClusterStore(pool *pgxpool.Pool) *ClusterStore {
 	return &ClusterStore{pool: pool}
 }
 
+// EnsureSchema 启动时兜底：迁移 000009_instance_clusters 没跑也别让 /clusters
+// 直接 500。clusters + cluster_members 两张表 + 默认 4 行种子，对应
+// migrations/000009_instance_clusters.up.sql。
+func (s *ClusterStore) EnsureSchema(ctx context.Context) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS clusters (
+			id          BIGSERIAL PRIMARY KEY,
+			name        VARCHAR(64) NOT NULL UNIQUE,
+			vip         VARCHAR(64) NOT NULL DEFAULT '',
+			algo        VARCHAR(32) NOT NULL DEFAULT 'round-robin',
+			state       VARCHAR(16) NOT NULL DEFAULT 'ok',
+			site_count  INTEGER NOT NULL DEFAULT 0,
+			description TEXT NOT NULL DEFAULT '',
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS cluster_members (
+			cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+			node_id    VARCHAR(128) NOT NULL,
+			role       VARCHAR(16) NOT NULL DEFAULT 'primary',
+			joined_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (cluster_id, node_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_cluster_members_node ON cluster_members(node_id)`,
+	}
+	for _, q := range stmts {
+		if _, err := s.pool.Exec(ctx, q); err != nil {
+			return err
+		}
+	}
+	// 默认 4 个集群种子，已有 name 不覆盖。
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO clusters (name, vip, algo, state, site_count, description) VALUES
+			('CLU-WWW',    '10.0.1.100', 'round-robin', 'ok',   3, '官网主集群'),
+			('CLU-API',    '10.0.2.100', 'least-conn',  'ok',   4, 'API 网关集群'),
+			('CLU-MOBILE', '10.0.3.100', 'ip-hash',     'warn', 2, '移动端集群 · 降级中'),
+			('CLU-INNER',  '10.0.4.100', 'round-robin', 'ok',   3, '内网业务集群')
+		ON CONFLICT (name) DO NOTHING`)
+	return err
+}
+
 const clusterCols = `id, name, vip, algo, state, site_count, description, created_at, updated_at`
 
 func (s *ClusterStore) List(ctx context.Context) ([]Cluster, error) {
