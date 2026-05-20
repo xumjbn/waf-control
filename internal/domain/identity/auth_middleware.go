@@ -45,9 +45,23 @@ func requireRole(roles ...string) func(http.Handler) http.Handler {
 				return
 			}
 
+			// admin 同义词：identity migrations 之后 admin 这条角色的 key 是
+			// system_admin / role.Name 可能是 '系统管理员' / 老库可能仍写 'admin'。
+			// 任何一条命中都放行。
+			adminSynonyms := map[string]struct{}{
+				"admin":         {},
+				"system_admin":  {},
+				"service_admin": {},
+				"superadmin":    {},
+				"系统管理员":         {},
+			}
 			for _, required := range roles {
 				for _, userRole := range claims.Roles {
-					if userRole == "admin" || userRole == required {
+					if _, ok := adminSynonyms[userRole]; ok {
+						next.ServeHTTP(w, r)
+						return
+					}
+					if userRole == required {
 						next.ServeHTTP(w, r)
 						return
 					}

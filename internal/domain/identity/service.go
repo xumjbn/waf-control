@@ -50,9 +50,16 @@ func (s *Service) Authenticate(ctx context.Context, req LoginRequest) (*TokenPai
 		return nil, fmt.Errorf("get user roles: %w", err)
 	}
 
-	roleNames := make([]string, len(roles))
-	for i, r := range roles {
-		roleNames[i] = r.Name
+	// 优先使用 role_key（canonical 英文 key，如 system_admin），缺省时回退到 name。
+	// requireRole 中间件按 key 判定，避免中文 display name 永远命中不到 admin 短语。
+	roleNames := make([]string, 0, len(roles)*2)
+	for _, r := range roles {
+		if r.RoleKey != "" {
+			roleNames = append(roleNames, r.RoleKey)
+		}
+		if r.Name != "" {
+			roleNames = append(roleNames, r.Name)
+		}
 	}
 
 	return s.issueTokenPair(ctx, user.ID, user.Username, roleNames)
