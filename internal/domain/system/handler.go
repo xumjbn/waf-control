@@ -222,6 +222,35 @@ func (h *Handler) ListUpgrades(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"data": upgrades})
 }
 
+// CheckUpgrade 一次返回"当前版本 + 最新可用版本"，前端 PageUpgrade 顶部消费。
+// GET /system/upgrades/check
+func (h *Handler) CheckUpgrade(w http.ResponseWriter, r *http.Request) {
+	current, _ := h.repo.CurrentUpgrade(r.Context())
+	latest, _ := h.repo.LatestUpgrade(r.Context())
+	out := map[string]any{
+		"current":             current,
+		"latest":              latest,
+		"upgrade_available":   current != nil && latest != nil && current.Version != latest.Version,
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// ApplyUpgrade POST /system/upgrades/{id}/apply
+// 触发安装完成（real worker 会异步执行，这里做"标记完成"）。
+func (h *Handler) ApplyUpgrade(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	if err := h.repo.MarkApplied(r.Context(), id); err != nil {
+		slog.Error("apply upgrade failed", "error", err)
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "applied"})
+}
+
 // CreateUpgrade godoc
 // @Summary 创建升级包
 // @Description 新增一个升级包记录

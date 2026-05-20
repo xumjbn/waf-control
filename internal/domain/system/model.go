@@ -35,17 +35,35 @@ type CreateLicenseRequest struct {
 }
 
 type Upgrade struct {
-	ID        int64     `json:"id"`
-	Version   string    `json:"version"`
-	FileName  string    `json:"file_name"`
-	FileSize  int64     `json:"file_size"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              int64      `json:"id"`
+	Version         string     `json:"version"`
+	Type            string     `json:"type"`            // patch / minor / major / security
+	Channel         string     `json:"channel"`         // stable / beta / dev
+	FileName        string     `json:"file_name"`
+	FileSize        int64      `json:"file_size"`
+	Checksum        string     `json:"checksum"`
+	DownloadURL     string     `json:"download_url"`
+	Notes           string     `json:"notes"`
+	ChangesSummary  string     `json:"changes_summary"`
+	Status          string     `json:"status"` // pending / in_progress / completed / failed
+	IsCurrent       bool       `json:"is_current"`
+	IsLatest        bool       `json:"is_latest"`
+	ReleasedAt      *time.Time `json:"released_at,omitempty"`
+	AppliedAt       *time.Time `json:"applied_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type CreateUpgradeRequest struct {
-	Version  string `json:"version"`
-	FileName string `json:"file_name"`
-	FileSize int64  `json:"file_size"`
+	Version         string `json:"version"`
+	Type            string `json:"type"`
+	Channel         string `json:"channel"`
+	FileName        string `json:"file_name"`
+	FileSize        int64  `json:"file_size"`
+	Checksum        string `json:"checksum"`
+	DownloadURL     string `json:"download_url"`
+	Notes           string `json:"notes"`
+	ChangesSummary  string `json:"changes_summary"`
+	ReleasedAt      string `json:"released_at"` // RFC3339
+	IsLatest        bool   `json:"is_latest"`
 }
