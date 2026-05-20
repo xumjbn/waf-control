@@ -10,6 +10,7 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	h := NewHandler(repo)
 
 	r.Route("/monitor", func(r chi.Router) {
+		r.Get("/kpi", h.KPI) // NW · 02 仪表盘 KPI snapshot
 		r.Get("/metric", h.ListMetrics)
 		r.Get("/metricspec", h.ListMetricSpecs)
 		r.Get("/metricspec/{id}", h.GetMetricSpec)
