@@ -175,7 +175,56 @@ func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": channels})
+	writeJSON(w, http.StatusOK, map[string]any{"data": channels, "kinds": ChannelKinds()})
+}
+
+func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
+	var req CreateChannelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.Name == "" || req.Kind == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and kind are required"})
+		return
+	}
+	ch, err := h.repo.CreateChannel(r.Context(), req)
+	if err != nil {
+		slog.Error("create alert channel failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusCreated, ch)
+}
+
+func (h *Handler) DeleteChannel(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	if err := h.repo.DeleteChannel(r.Context(), id); err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "channel not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
+}
+
+// TestChannel 发送一条 INFO 级别测试事件到该 channel（占位实现）。
+// POST /alert/channels/{id}/test
+func (h *Handler) TestChannel(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	ev, err := h.repo.TestChannel(r.Context(), id)
+	if err != nil {
+		slog.Error("test alert channel failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusAccepted, ev)
 }
 
 func (h *Handler) UpdateChannel(w http.ResponseWriter, r *http.Request) {
