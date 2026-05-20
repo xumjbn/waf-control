@@ -1,16 +1,16 @@
 package policy
 
 // modsec_sync.go —— 把 deploy/modsec/rules.d/<category>/<id>-<slug>.conf 解析成
-// policies 表里的 builtin 规则，让前端『规则引擎』Tab 直接能看到与 WAF agent
+// policies 表里的 builtin 规则。让前端『规则引擎』Tab 直接看到与 WAF agent
 // 真正在执行的 ModSecurity 规则一一对应的条目。
 //
-// 目录约定：
-//   deploy/modsec/rules.d/
-//     sqli/120001-keyword-injection.conf
-//     xss/130001-...
-//     ...
+// 规则源（按优先级）：
+//   1) env WAF_MODSEC_RULES_DIR — 显式覆盖，便于 admin 临时挂别的目录
+//   2) /etc/waf/modsec-rules    — docker-compose 容器内的卷挂载点
+//   3) 其他几个 dev 路径
+//   4) 编译期 embed 进二进制的 builtin_rules/（兜底，永远可用）
 //
-// 文件结构（约定，由 deploy/modsec/_RULES.md 维护）：
+// 文件结构（约定，由 deploy/modsec/rules.d/_RULES.md 维护）：
 //
 //   # <category>/<id> — <human description>
 //   SecRule <targets> "@<op> <pattern>" \
@@ -23,21 +23,32 @@ package policy
 //        severity:'<CRITICAL|HIGH|MEDIUM|NOTICE>',\
 //        tag:'<dotted-tag>'"
 //
-// SyncFromDir 是幂等的：用 modsec_id 做唯一键，已存在的就 UPDATE name/match/...
+// SyncFromFS 是幂等的：用 modsec_id 做唯一键，已存在的就 UPDATE name/match/...
 // 但保留 is_enabled（用户在 UI 里禁用过的不会被重新打开）。
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
 )
+
+// builtinRulesFS 把 deploy/modsec/rules.d 的镜像（waf-control/internal/domain/
+// policy/builtin_rules/）打包进二进制。是最后一道兜底 —— 即便部署没挂载规则目录
+// 也能保证规则页非空。
+//
+// 同步责任：Makefile `sync-builtin-rules` 把 deploy/modsec/rules.d → builtin_rules/
+// 拉平；TestEmbeddedMatchesDeploy 在 CI 里防漂移。
+//
+//go:embed all:builtin_rules
+var builtinRulesFS embed.FS
 
 // ModsecRule 解析单个 .conf 文件后得到的结构化信息。
 type ModsecRule struct {
@@ -49,7 +60,7 @@ type ModsecRule struct {
 	Action      string // deny→block / pass→log / drop→block / redirect→block
 	Field       string // targets 转成 UI 可读串
 	Match       string // 算子 + pattern（如 regex:(?i)union\s+select；截到 200 字符）
-	Priority    int    // 取 modsec_id 前 5 位作排序基准，越小优先级越高
+	Priority    int    // 取 modsec_id 前 N-3 位作排序基准，越小优先级越高
 	Tag         string // tag: 的内容
 }
 
@@ -63,18 +74,13 @@ var (
 	rxSecRule   = regexp.MustCompile(`(?s)SecRule\s+(\S+)\s+"(@\S+)\s+(.+?)"\s*\\?\s*"`)
 )
 
-// ParseFile 解析单个 .conf 文件。失败返回 nil + 错误（调用方 skip）。
-func ParseFile(category, path string) (*ModsecRule, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	content := string(raw)
-
+// ParseBytes 解析单条规则的内容。category 来自文件所在子目录名。
+func ParseBytes(category string, content []byte) (*ModsecRule, error) {
+	src := string(content)
 	out := &ModsecRule{Category: category}
 
 	// 第一行：# <cat>/<id> — <desc>
-	for _, line := range strings.SplitN(content, "\n", 2) {
+	for _, line := range strings.SplitN(src, "\n", 2) {
 		if m := rxFirstLine.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
 			out.Category = m[1]
 			out.ModsecID = m[2]
@@ -85,36 +91,35 @@ func ParseFile(category, path string) (*ModsecRule, error) {
 
 	// 兜底从 SecRule 行抓 id
 	if out.ModsecID == "" {
-		if m := rxID.FindStringSubmatch(content); m != nil {
+		if m := rxID.FindStringSubmatch(src); m != nil {
 			out.ModsecID = m[1]
 		}
 	}
 	if out.ModsecID == "" {
-		return nil, fmt.Errorf("no modsec id found in %s", path)
+		return nil, errors.New("no modsec id found")
 	}
 
-	if m := rxMsg.FindStringSubmatch(content); m != nil {
+	if m := rxMsg.FindStringSubmatch(src); m != nil {
 		out.Description = m[1]
 		if out.Name == "" {
 			out.Name = m[1]
 		}
 	}
-	if m := rxSeverity.FindStringSubmatch(content); m != nil {
+	if m := rxSeverity.FindStringSubmatch(src); m != nil {
 		out.Severity = normalizeSeverity(m[1])
 	} else {
 		out.Severity = "medium"
 	}
-	if m := rxActionKW.FindStringSubmatch(content); m != nil {
+	if m := rxActionKW.FindStringSubmatch(src); m != nil {
 		out.Action = normalizeAction(m[1])
 	} else {
 		out.Action = "log"
 	}
-	if m := rxTag.FindStringSubmatch(content); m != nil {
+	if m := rxTag.FindStringSubmatch(src); m != nil {
 		out.Tag = m[1]
 	}
 
-	// SecRule <targets> "@<op> <pattern>"
-	if m := rxSecRule.FindStringSubmatch(content); m != nil {
+	if m := rxSecRule.FindStringSubmatch(src); m != nil {
 		out.Field = friendlyTargets(m[1])
 		op := strings.TrimPrefix(m[2], "@")
 		pattern := strings.TrimSpace(m[3])
@@ -124,7 +129,6 @@ func ParseFile(category, path string) (*ModsecRule, error) {
 		out.Match = op + ":" + pattern
 	}
 
-	// modsec_id 前 4-5 位决定排序：120001 → 120
 	if len(out.ModsecID) >= 4 {
 		if v, err := strconv.Atoi(out.ModsecID[:len(out.ModsecID)-3]); err == nil {
 			out.Priority = v
@@ -166,8 +170,6 @@ func normalizeAction(a string) string {
 	return "log"
 }
 
-// friendlyTargets 把 ModSecurity 的 targets (ARGS|REQUEST_BODY|REQUEST_HEADERS:Cookie)
-// 翻译成 UI 习惯的 body|query / header.X / uri 之类的串。
 func friendlyTargets(t string) string {
 	parts := strings.Split(t, "|")
 	out := make([]string, 0, len(parts))
@@ -193,7 +195,6 @@ func friendlyTargets(t string) string {
 			out = append(out, strings.ToLower(p))
 		}
 	}
-	// 去重 + 限长
 	seen := map[string]bool{}
 	uniq := []string{}
 	for _, x := range out {
@@ -209,35 +210,30 @@ func friendlyTargets(t string) string {
 	return r
 }
 
-// WalkRulesDir 扫描整棵规则树，返回所有解析成功的规则。失败的文件只打 warn。
-func WalkRulesDir(root string) ([]ModsecRule, error) {
-	if root == "" {
-		return nil, errors.New("modsec rules dir is empty")
-	}
-	stat, err := os.Stat(root)
-	if err != nil {
-		return nil, fmt.Errorf("stat %s: %w", root, err)
-	}
-	if !stat.IsDir() {
-		return nil, fmt.Errorf("%s is not a dir", root)
-	}
-
+// WalkFS 在任意 fs.FS 上扫描所有 .conf 文件并解析。
+// root 是 FS 内部的子目录路径（embed 是 "builtin_rules"，os.DirFS(dir) 用 "."）。
+func WalkFS(fsys fs.FS, root string) ([]ModsecRule, error) {
 	var out []ModsecRule
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".conf") {
+		if !strings.HasSuffix(p, ".conf") {
 			return nil
 		}
 		// category = 上一层目录名
-		category := filepath.Base(filepath.Dir(path))
-		rule, perr := ParseFile(category, path)
+		category := path.Base(path.Dir(p))
+		content, rerr := fs.ReadFile(fsys, p)
+		if rerr != nil {
+			slog.Warn("modsec rule read skipped", "file", p, "err", rerr)
+			return nil
+		}
+		rule, perr := ParseBytes(category, content)
 		if perr != nil {
-			slog.Warn("modsec rule parse skipped", "file", path, "err", perr)
+			slog.Warn("modsec rule parse skipped", "file", p, "err", perr)
 			return nil
 		}
 		out = append(out, *rule)
@@ -249,24 +245,49 @@ func WalkRulesDir(root string) ([]ModsecRule, error) {
 	return out, nil
 }
 
-// SyncFromDir 把 root 下解析到的规则 upsert 进 policies 表（builtin=true）。
-// 返回 (inserted, updated, total)。已存在的（按 modsec_id）只更新 name/severity/
-// action/scope/field/match/priority/description，保留 is_enabled。
-func (r *Repository) SyncFromDir(ctx context.Context, root string) (int, int, int, error) {
-	rules, err := WalkRulesDir(root)
+// loadRules 按优先级（disk override → embed）拿规则。返回规则列表 + 数据源描述。
+func loadRules() ([]ModsecRule, string, error) {
+	if dir := os.Getenv("WAF_MODSEC_RULES_DIR"); dir != "" {
+		if rules, err := WalkFS(os.DirFS(dir), "."); err == nil && len(rules) > 0 {
+			return rules, "env:" + dir, nil
+		} else if err != nil {
+			slog.Warn("WAF_MODSEC_RULES_DIR walk failed", "dir", dir, "err", err)
+		}
+	}
+	for _, p := range []string{
+		"/etc/waf/modsec-rules",
+		"../../deploy/modsec/rules.d",
+		"../deploy/modsec/rules.d",
+		"./deploy/modsec/rules.d",
+	} {
+		if st, err := os.Stat(p); err == nil && st.IsDir() {
+			if rules, err := WalkFS(os.DirFS(p), "."); err == nil && len(rules) > 0 {
+				return rules, "disk:" + p, nil
+			}
+		}
+	}
+	// 最后兜底：编译期 embed 的副本。永远存在。
+	rules, err := WalkFS(builtinRulesFS, "builtin_rules")
 	if err != nil {
-		return 0, 0, 0, err
+		return nil, "embed", fmt.Errorf("walk embed: %w", err)
+	}
+	return rules, "embed", nil
+}
+
+// SyncFromFS 把规则集合 upsert 进 policies 表（builtin=true）。返回 (inserted, updated, total, source)。
+// 自动选择数据源（env / disk / embed）；调用方只要保证 DB 连通即可。
+func (r *Repository) SyncFromFS(ctx context.Context) (int, int, int, string, error) {
+	rules, source, err := loadRules()
+	if err != nil {
+		return 0, 0, 0, source, err
 	}
 	inserted, updated := 0, 0
 	for _, m := range rules {
-		var (
-			existingID int64
-			existing   bool
-		)
-		err := r.pool.QueryRow(ctx,
+		var existingID int64
+		var existing bool
+		if err := r.pool.QueryRow(ctx,
 			`SELECT id FROM policies WHERE modsec_id = $1`, m.ModsecID,
-		).Scan(&existingID)
-		if err == nil {
+		).Scan(&existingID); err == nil {
 			existing = true
 		}
 
@@ -280,7 +301,8 @@ func (r *Repository) SyncFromDir(ctx context.Context, root string) (int, int, in
 				m.Name, m.Severity, m.Action, m.Description,
 				"全部站点", m.Field, m.Match, m.Priority, existingID)
 			if err != nil {
-				return inserted, updated, len(rules), fmt.Errorf("update builtin %s: %w", m.ModsecID, err)
+				return inserted, updated, len(rules), source,
+					fmt.Errorf("update builtin %s: %w", m.ModsecID, err)
 			}
 			updated++
 		} else {
@@ -292,10 +314,11 @@ func (r *Repository) SyncFromDir(ctx context.Context, root string) (int, int, in
 				m.Name, m.Severity, m.Action, m.Description,
 				"全部站点", m.Field, m.Match, m.Priority, m.ModsecID)
 			if err != nil {
-				return inserted, updated, len(rules), fmt.Errorf("insert builtin %s: %w", m.ModsecID, err)
+				return inserted, updated, len(rules), source,
+					fmt.Errorf("insert builtin %s: %w", m.ModsecID, err)
 			}
 			inserted++
 		}
 	}
-	return inserted, updated, len(rules), nil
+	return inserted, updated, len(rules), source, nil
 }
