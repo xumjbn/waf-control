@@ -1,0 +1,4 @@
+BEGIN;
+DROP TABLE IF EXISTS cluster_members;
+DROP TABLE IF EXISTS clusters;
+COMMIT;

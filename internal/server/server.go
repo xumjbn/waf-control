@@ -127,5 +127,5 @@ func (s *Server) registerDeployMgmtRoutes(r chi.Router) {
 	}
 	siteRepo := site.NewRepository(s.pool)
 	deploymgmt.RegisterRoutes(r, s.pool, siteRepo, s.agentSrv.Service())
-	instancemgmt.RegisterRoutes(r, s.agentSrv.Service())
+	instancemgmt.RegisterRoutesWithDB(r, s.agentSrv.Service(), s.pool)
 }
