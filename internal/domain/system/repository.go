@@ -16,10 +16,54 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// EnsureSchema 启动时幂等补齐 settings.description + licenses 完整字段（migration 000015）。
+func (r *Repository) EnsureSchema(ctx context.Context) error {
+	stmts := []string{
+		`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description VARCHAR(255) NOT NULL DEFAULT ''`,
+		`ALTER TABLE licenses ADD COLUMN IF NOT EXISTS customer      VARCHAR(128) NOT NULL DEFAULT ''`,
+		`ALTER TABLE licenses ADD COLUMN IF NOT EXISTS contact_email VARCHAR(128) NOT NULL DEFAULT ''`,
+		`ALTER TABLE licenses ADD COLUMN IF NOT EXISTS grace_until   TIMESTAMPTZ`,
+		`ALTER TABLE licenses ADD COLUMN IF NOT EXISTS issued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+		`ALTER TABLE licenses ADD COLUMN IF NOT EXISTS edition       VARCHAR(32) NOT NULL DEFAULT 'community'`,
+		`CREATE INDEX IF NOT EXISTS idx_licenses_is_active ON licenses(is_active)`,
+	}
+	for _, s := range stmts {
+		if _, err := r.pool.Exec(ctx, s); err != nil {
+			return fmt.Errorf("ensure system schema (%q): %w", s, err)
+		}
+	}
+	// 默认设置（幂等）
+	defaults := [][3]string{
+		{"platform.name", "OpenWAF", "平台名称"},
+		{"platform.timezone", "Asia/Shanghai", "默认时区"},
+		{"platform.lang", "zh-CN", "默认语言"},
+		{"alert.retention_days", "90", "告警保留天数"},
+		{"log.retention_days", "30", "日志保留天数"},
+		{"security.session_timeout", "3600", "会话超时秒"},
+	}
+	for _, d := range defaults {
+		if _, err := r.pool.Exec(ctx,
+			`INSERT INTO system_settings (key, value, category, description)
+			 VALUES ($1, $2, 'basic', $3)
+			 ON CONFLICT (key) DO NOTHING`, d[0], d[1], d[2]); err != nil {
+			return fmt.Errorf("seed setting %s: %w", d[0], err)
+		}
+	}
+	return nil
+}
+
 // --- Settings ---
 
+const settingCols = `id, key, value, COALESCE(category,''), COALESCE(description,''), created_at, updated_at`
+
+func scanSetting(rs interface {
+	Scan(...interface{}) error
+}, s *Setting) error {
+	return rs.Scan(&s.ID, &s.Key, &s.Value, &s.Category, &s.Description, &s.CreatedAt, &s.UpdatedAt)
+}
+
 func (r *Repository) ListSettings(ctx context.Context, category string) ([]Setting, error) {
-	query := `SELECT id, key, value, COALESCE(category,''), created_at, updated_at FROM system_settings`
+	query := `SELECT ` + settingCols + ` FROM system_settings`
 	var args []interface{}
 	if category != "" {
 		query += " WHERE category = $1"
@@ -36,7 +80,7 @@ func (r *Repository) ListSettings(ctx context.Context, category string) ([]Setti
 	var settings []Setting
 	for rows.Next() {
 		var s Setting
-		if err := rows.Scan(&s.ID, &s.Key, &s.Value, &s.Category, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		if err := scanSetting(rows, &s); err != nil {
 			return nil, fmt.Errorf("scan setting: %w", err)
 		}
 		settings = append(settings, s)
@@ -46,13 +90,15 @@ func (r *Repository) ListSettings(ctx context.Context, category string) ([]Setti
 
 func (r *Repository) UpsertSetting(ctx context.Context, req UpsertSettingRequest) (*Setting, error) {
 	var s Setting
-	err := r.pool.QueryRow(ctx, `INSERT INTO system_settings (key, value, category)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category, updated_at = NOW()
-		RETURNING id, key, value, COALESCE(category,''), created_at, updated_at`,
-		req.Key, req.Value, req.Category).Scan(
-		&s.ID, &s.Key, &s.Value, &s.Category, &s.CreatedAt, &s.UpdatedAt)
-	if err != nil {
+	q := `INSERT INTO system_settings (key, value, category, description)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (key) DO UPDATE SET
+		  value = EXCLUDED.value,
+		  category = EXCLUDED.category,
+		  description = EXCLUDED.description,
+		  updated_at = NOW()
+		RETURNING ` + settingCols
+	if err := scanSetting(r.pool.QueryRow(ctx, q, req.Key, req.Value, req.Category, req.Description), &s); err != nil {
 		return nil, fmt.Errorf("upsert setting: %w", err)
 	}
 	return &s, nil
@@ -71,9 +117,20 @@ func (r *Repository) DeleteSetting(ctx context.Context, key string) error {
 
 // --- Licenses ---
 
+const licenseCols = `id, license_key, COALESCE(product_name,''), COALESCE(edition,'community'),
+	COALESCE(customer,''), COALESCE(contact_email,''), max_nodes,
+	COALESCE(issued_at, created_at), expires_at, grace_until, is_active, created_at`
+
+func scanLicense(rs interface {
+	Scan(...interface{}) error
+}, l *License) error {
+	return rs.Scan(&l.ID, &l.LicenseKey, &l.ProductName, &l.Edition,
+		&l.Customer, &l.ContactEmail, &l.MaxNodes,
+		&l.IssuedAt, &l.ExpiresAt, &l.GraceUntil, &l.IsActive, &l.CreatedAt)
+}
+
 func (r *Repository) ListLicenses(ctx context.Context) ([]License, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, license_key, COALESCE(product_name,''), max_nodes, expires_at, is_active, created_at
-		FROM licenses ORDER BY created_at DESC`)
+	rows, err := r.pool.Query(ctx, `SELECT `+licenseCols+` FROM licenses ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list licenses: %w", err)
 	}
@@ -82,7 +139,7 @@ func (r *Repository) ListLicenses(ctx context.Context) ([]License, error) {
 	var licenses []License
 	for rows.Next() {
 		var l License
-		if err := rows.Scan(&l.ID, &l.LicenseKey, &l.ProductName, &l.MaxNodes, &l.ExpiresAt, &l.IsActive, &l.CreatedAt); err != nil {
+		if err := scanLicense(rows, &l); err != nil {
 			return nil, fmt.Errorf("scan license: %w", err)
 		}
 		licenses = append(licenses, l)
@@ -90,19 +147,42 @@ func (r *Repository) ListLicenses(ctx context.Context) ([]License, error) {
 	return licenses, nil
 }
 
+// CurrentLicense 返回当前激活的 license（is_active = true）。NW · 09 系统页"许可证详情"卡使用。
+func (r *Repository) CurrentLicense(ctx context.Context) (*License, error) {
+	var l License
+	if err := scanLicense(r.pool.QueryRow(ctx,
+		`SELECT `+licenseCols+` FROM licenses WHERE is_active = TRUE ORDER BY id DESC LIMIT 1`), &l); err != nil {
+		return nil, fmt.Errorf("current license: %w", err)
+	}
+	return &l, nil
+}
+
 func (r *Repository) CreateLicense(ctx context.Context, req CreateLicenseRequest) (*License, error) {
 	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("invalid expires_at format: %w", err)
 	}
+	var graceUntil *time.Time
+	if req.GraceUntil != "" {
+		t, err := time.Parse(time.RFC3339, req.GraceUntil)
+		if err != nil {
+			return nil, fmt.Errorf("invalid grace_until format: %w", err)
+		}
+		graceUntil = &t
+	}
+	edition := req.Edition
+	if edition == "" {
+		edition = "community"
+	}
 
 	var l License
-	err = r.pool.QueryRow(ctx, `INSERT INTO licenses (license_key, product_name, max_nodes, expires_at)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, license_key, COALESCE(product_name,''), max_nodes, expires_at, is_active, created_at`,
-		req.LicenseKey, req.ProductName, req.MaxNodes, expiresAt).Scan(
-		&l.ID, &l.LicenseKey, &l.ProductName, &l.MaxNodes, &l.ExpiresAt, &l.IsActive, &l.CreatedAt)
-	if err != nil {
+	q := `INSERT INTO licenses (license_key, product_name, edition, customer, contact_email,
+		max_nodes, expires_at, grace_until, issued_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
+		RETURNING ` + licenseCols
+	if err := scanLicense(r.pool.QueryRow(ctx, q,
+		req.LicenseKey, req.ProductName, edition, req.Customer, req.ContactEmail,
+		req.MaxNodes, expiresAt, graceUntil), &l); err != nil {
 		return nil, fmt.Errorf("create license: %w", err)
 	}
 	return &l, nil

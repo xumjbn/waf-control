@@ -112,7 +112,41 @@ func (h *Handler) ListLicenses(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"data": licenses})
+	// 顺手补 status 字段（前端展示用）。
+	out := make([]map[string]any, 0, len(licenses))
+	for _, l := range licenses {
+		out = append(out, licenseToMap(l))
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"data": out})
+}
+
+// CurrentLicense  GET /system/license
+// 返回当前激活的 license 详情（含 status 推断），NW · 09 系统页"当前授权"卡片消费。
+func (h *Handler) CurrentLicense(w http.ResponseWriter, r *http.Request) {
+	l, err := h.repo.CurrentLicense(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no active license"})
+		return
+	}
+	writeJSON(w, http.StatusOK, licenseToMap(*l))
+}
+
+func licenseToMap(l License) map[string]any {
+	return map[string]any{
+		"id":            l.ID,
+		"license_key":   l.LicenseKey,
+		"product_name":  l.ProductName,
+		"edition":       l.Edition,
+		"customer":      l.Customer,
+		"contact_email": l.ContactEmail,
+		"max_nodes":     l.MaxNodes,
+		"issued_at":     l.IssuedAt,
+		"expires_at":    l.ExpiresAt,
+		"grace_until":   l.GraceUntil,
+		"is_active":     l.IsActive,
+		"status":        l.Status(),
+		"created_at":    l.CreatedAt,
+	}
 }
 
 // CreateLicense godoc

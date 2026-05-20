@@ -10,6 +10,9 @@ import (
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	repo := NewRepository(pool)
+	if err := repo.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("system ensure schema failed", "error", err)
+	}
 	if err := repo.EnsureUpgradeSchema(context.Background()); err != nil {
 		slog.Warn("system_upgrades ensure schema failed", "error", err)
 	}
@@ -21,6 +24,7 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		r.Delete("/{key}", h.DeleteSetting)
 	})
 
+	r.Get("/system/license", h.CurrentLicense) // 单数 = 当前激活
 	r.Route("/system/licenses", func(r chi.Router) {
 		r.Get("/", h.ListLicenses)
 		r.Post("/", h.CreateLicense)
