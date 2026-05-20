@@ -32,6 +32,18 @@ func registerWith(r chi.Router, pool *pgxpool.Pool, agentSvc *agent.Service) {
 	}
 	h := NewHandlerWithAgent(repo, agentSvc)
 
+	// 站点级防护模块（site_modules）
+	var modH *ModuleHandler
+	if pool != nil {
+		modStore := NewModuleStore(pool)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := modStore.EnsureSchema(ctx); err != nil {
+			slog.Warn("site_modules ensure schema failed", "err", err)
+		}
+		modH = NewModuleHandler(modStore)
+	}
+
 	r.Route("/sites", func(r chi.Router) {
 		r.Get("/", h.List)
 		r.Post("/", h.Create)
@@ -42,5 +54,9 @@ func registerWith(r chi.Router, pool *pgxpool.Pool, agentSvc *agent.Service) {
 		r.Get("/{id}/devices", h.ListDevices)
 		r.Post("/{id}/devices", h.BindDevice)
 		r.Delete("/{id}/devices/{deviceId}", h.UnbindDevice)
+		if modH != nil {
+			r.Get("/{id}/modules", modH.List)
+			r.Put("/{id}/modules/{module}", modH.Put)
+		}
 	})
 }
