@@ -1,0 +1,13 @@
+BEGIN;
+DROP INDEX IF EXISTS idx_policies_builtin;
+DROP INDEX IF EXISTS idx_policies_priority;
+DROP INDEX IF EXISTS idx_policies_scope;
+
+ALTER TABLE policies DROP COLUMN IF EXISTS last_hit_at;
+ALTER TABLE policies DROP COLUMN IF EXISTS hits;
+ALTER TABLE policies DROP COLUMN IF EXISTS builtin;
+ALTER TABLE policies DROP COLUMN IF EXISTS priority;
+ALTER TABLE policies DROP COLUMN IF EXISTS match_value;
+ALTER TABLE policies DROP COLUMN IF EXISTS field;
+ALTER TABLE policies DROP COLUMN IF EXISTS scope;
+COMMIT;

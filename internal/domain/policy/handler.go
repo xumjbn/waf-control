@@ -322,6 +322,30 @@ func (h *Handler) DeletePolicy(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
+// IncrementHits 由 agent 上报某条策略命中计数。
+// POST /policies/{id}/hit  body: { "delta": 1 }
+func (h *Handler) IncrementHits(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	var body struct {
+		Delta int64 `json:"delta"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if body.Delta <= 0 {
+		body.Delta = 1
+	}
+	pol, err := h.repo.IncrementHits(r.Context(), id, body.Delta)
+	if err != nil {
+		slog.Error("increment hits failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, pol)
+}
+
 // --- Rules ---
 
 // ListRules godoc

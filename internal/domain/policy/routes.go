@@ -1,12 +1,18 @@
 package policy
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	repo := NewRepository(pool)
+	if err := repo.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("policy ensure schema failed", "error", err)
+	}
 	h := NewHandler(repo)
 
 	r.Route("/policy-categories", func(r chi.Router) {
@@ -22,6 +28,7 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		r.Get("/{id}", h.GetPolicy)
 		r.Put("/{id}", h.UpdatePolicy)
 		r.Delete("/{id}", h.DeletePolicy)
+		r.Post("/{id}/hit", h.IncrementHits)
 		r.Get("/{id}/rules", h.ListRules)
 		r.Post("/{id}/rules", h.CreateRule)
 		r.Delete("/{id}/rules/{ruleId}", h.DeleteRule)

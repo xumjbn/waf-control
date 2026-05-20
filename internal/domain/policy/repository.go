@@ -17,6 +17,41 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// EnsureSchema 启动时幂等补齐 policies 表的 NW · 04 UI 字段（migration 000012）。
+func (r *Repository) EnsureSchema(ctx context.Context) error {
+	stmts := []string{
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS scope       VARCHAR(64) NOT NULL DEFAULT '全部站点'`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS field       VARCHAR(64) NOT NULL DEFAULT ''`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS match_value TEXT        NOT NULL DEFAULT ''`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS priority    INTEGER     NOT NULL DEFAULT 100`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS builtin     BOOLEAN     NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS hits        BIGINT      NOT NULL DEFAULT 0`,
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS last_hit_at TIMESTAMPTZ`,
+		`CREATE INDEX IF NOT EXISTS idx_policies_scope    ON policies(scope)`,
+		`CREATE INDEX IF NOT EXISTS idx_policies_priority ON policies(priority)`,
+		`CREATE INDEX IF NOT EXISTS idx_policies_builtin  ON policies(builtin)`,
+	}
+	for _, s := range stmts {
+		if _, err := r.pool.Exec(ctx, s); err != nil {
+			return fmt.Errorf("ensure policies schema (%q): %w", s, err)
+		}
+	}
+	return nil
+}
+
+const policySelectCols = `id, name, category_id, severity, action, is_enabled,
+	COALESCE(description,''), created_at, updated_at,
+	COALESCE(scope,'全部站点'), COALESCE(field,''), COALESCE(match_value,''),
+	COALESCE(priority,100), COALESCE(builtin,false), COALESCE(hits,0), last_hit_at`
+
+func scanPolicy(rs interface {
+	Scan(...interface{}) error
+}, pol *Policy) error {
+	return rs.Scan(&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
+		&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt,
+		&pol.Scope, &pol.Field, &pol.Match, &pol.Priority, &pol.Builtin, &pol.Hits, &pol.LastHitAt)
+}
+
 // --- Categories ---
 
 func (r *Repository) ListCategories(ctx context.Context) ([]Category, error) {
@@ -145,9 +180,8 @@ func (r *Repository) ListPolicies(ctx context.Context, p ListPolicyParams) ([]Po
 	}
 
 	offset := (p.Page - 1) * p.PageSize
-	query := fmt.Sprintf(`SELECT id, name, category_id, severity, action, is_enabled,
-		COALESCE(description,''), created_at, updated_at
-		FROM policies %s ORDER BY id DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+	query := fmt.Sprintf(`SELECT %s FROM policies %s ORDER BY priority ASC, id DESC LIMIT $%d OFFSET $%d`,
+		policySelectCols, where, argIdx, argIdx+1)
 	args = append(args, p.PageSize, offset)
 
 	rows, err := r.pool.Query(ctx, query, args...)
@@ -159,8 +193,7 @@ func (r *Repository) ListPolicies(ctx context.Context, p ListPolicyParams) ([]Po
 	var policies []Policy
 	for rows.Next() {
 		var pol Policy
-		if err := rows.Scan(&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
-			&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt); err != nil {
+		if err := scanPolicy(rows, &pol); err != nil {
 			return nil, 0, fmt.Errorf("scan policy: %w", err)
 		}
 		policies = append(policies, pol)
@@ -170,12 +203,8 @@ func (r *Repository) ListPolicies(ctx context.Context, p ListPolicyParams) ([]Po
 
 func (r *Repository) GetPolicy(ctx context.Context, id int64) (*Policy, error) {
 	var pol Policy
-	err := r.pool.QueryRow(ctx, `SELECT id, name, category_id, severity, action, is_enabled,
-		COALESCE(description,''), created_at, updated_at
-		FROM policies WHERE id = $1`, id).Scan(
-		&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
-		&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt)
-	if err != nil {
+	q := fmt.Sprintf(`SELECT %s FROM policies WHERE id = $1`, policySelectCols)
+	if err := scanPolicy(r.pool.QueryRow(ctx, q, id), &pol); err != nil {
 		return nil, fmt.Errorf("get policy: %w", err)
 	}
 	return &pol, nil
@@ -194,16 +223,28 @@ func (r *Repository) CreatePolicy(ctx context.Context, req CreatePolicyRequest) 
 	if req.IsEnabled != nil {
 		isEnabled = *req.IsEnabled
 	}
+	scope := req.Scope
+	if scope == "" {
+		scope = "全部站点"
+	}
+	priority := req.Priority
+	if priority <= 0 {
+		priority = 100
+	}
+	builtin := false
+	if req.Builtin != nil {
+		builtin = *req.Builtin
+	}
 
 	var pol Policy
-	err := r.pool.QueryRow(ctx, `INSERT INTO policies (name, category_id, severity, action, is_enabled, description)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, name, category_id, severity, action, is_enabled,
-		COALESCE(description,''), created_at, updated_at`,
-		req.Name, req.CategoryID, severity, action, isEnabled, req.Description).Scan(
-		&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
-		&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt)
-	if err != nil {
+	q := fmt.Sprintf(`INSERT INTO policies (name, category_id, severity, action, is_enabled, description,
+		scope, field, match_value, priority, builtin)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		RETURNING %s`, policySelectCols)
+	if err := scanPolicy(r.pool.QueryRow(ctx, q,
+		req.Name, req.CategoryID, severity, action, isEnabled, req.Description,
+		scope, req.Field, req.Match, priority, builtin,
+	), &pol); err != nil {
 		return nil, fmt.Errorf("create policy: %w", err)
 	}
 	return &pol, nil
@@ -244,24 +285,58 @@ func (r *Repository) UpdatePolicy(ctx context.Context, id int64, req UpdatePolic
 		args = append(args, *req.Description)
 		argIdx++
 	}
+	if req.Scope != nil {
+		sets = append(sets, fmt.Sprintf("scope = $%d", argIdx))
+		args = append(args, *req.Scope)
+		argIdx++
+	}
+	if req.Field != nil {
+		sets = append(sets, fmt.Sprintf("field = $%d", argIdx))
+		args = append(args, *req.Field)
+		argIdx++
+	}
+	if req.Match != nil {
+		sets = append(sets, fmt.Sprintf("match_value = $%d", argIdx))
+		args = append(args, *req.Match)
+		argIdx++
+	}
+	if req.Priority != nil {
+		sets = append(sets, fmt.Sprintf("priority = $%d", argIdx))
+		args = append(args, *req.Priority)
+		argIdx++
+	}
+	if req.Builtin != nil {
+		sets = append(sets, fmt.Sprintf("builtin = $%d", argIdx))
+		args = append(args, *req.Builtin)
+		argIdx++
+	}
 
 	if len(sets) == 0 {
 		return r.GetPolicy(ctx, id)
 	}
 
 	sets = append(sets, "updated_at = NOW()")
-	query := fmt.Sprintf(`UPDATE policies SET %s WHERE id = $%d
-		RETURNING id, name, category_id, severity, action, is_enabled,
-		COALESCE(description,''), created_at, updated_at`,
-		strings.Join(sets, ", "), argIdx)
+	query := fmt.Sprintf(`UPDATE policies SET %s WHERE id = $%d RETURNING %s`,
+		strings.Join(sets, ", "), argIdx, policySelectCols)
 	args = append(args, id)
 
 	var pol Policy
-	err := r.pool.QueryRow(ctx, query, args...).Scan(
-		&pol.ID, &pol.Name, &pol.CategoryID, &pol.Severity, &pol.Action,
-		&pol.IsEnabled, &pol.Description, &pol.CreatedAt, &pol.UpdatedAt)
-	if err != nil {
+	if err := scanPolicy(r.pool.QueryRow(ctx, query, args...), &pol); err != nil {
 		return nil, fmt.Errorf("update policy: %w", err)
+	}
+	return &pol, nil
+}
+
+// IncrementHits 由 agent 上报命中计数（hits += delta，last_hit_at = NOW）。
+func (r *Repository) IncrementHits(ctx context.Context, id int64, delta int64) (*Policy, error) {
+	if delta <= 0 {
+		delta = 1
+	}
+	q := fmt.Sprintf(`UPDATE policies SET hits = hits + $1, last_hit_at = NOW() WHERE id = $2 RETURNING %s`,
+		policySelectCols)
+	var pol Policy
+	if err := scanPolicy(r.pool.QueryRow(ctx, q, delta, id), &pol); err != nil {
+		return nil, fmt.Errorf("increment hits: %w", err)
 	}
 	return &pol, nil
 }

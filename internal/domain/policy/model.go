@@ -23,6 +23,14 @@ type Policy struct {
 	Description string    `json:"description,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+	// migration 000012 起：与前端 Rule 列直接对齐的 UI 字段
+	Scope      string     `json:"scope"`
+	Field      string     `json:"field"`
+	Match      string     `json:"match"`
+	Priority   int        `json:"priority"`
+	Builtin    bool       `json:"builtin"`
+	Hits       int64      `json:"hits"`
+	LastHitAt  *time.Time `json:"last_hit_at,omitempty"`
 }
 
 type Rule struct {
@@ -69,6 +77,12 @@ type CreatePolicyRequest struct {
 	Action      string `json:"action"`
 	IsEnabled   *bool  `json:"is_enabled"`
 	Description string `json:"description"`
+	// UI 字段
+	Scope    string `json:"scope"`
+	Field    string `json:"field"`
+	Match    string `json:"match"`
+	Priority int    `json:"priority"`
+	Builtin  *bool  `json:"builtin"`
 }
 
 type UpdatePolicyRequest struct {
@@ -78,6 +92,11 @@ type UpdatePolicyRequest struct {
 	Action      *string `json:"action"`
 	IsEnabled   *bool   `json:"is_enabled"`
 	Description *string `json:"description"`
+	Scope       *string `json:"scope"`
+	Field       *string `json:"field"`
+	Match       *string `json:"match"`
+	Priority    *int    `json:"priority"`
+	Builtin     *bool   `json:"builtin"`
 }
 
 type CreateRuleRequest struct {
