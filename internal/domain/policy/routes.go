@@ -25,6 +25,27 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 			"source", source, "inserted", ins, "updated", upd, "total", total)
 	}
 
+	// Bot 挑战模式 + API 端点（migration 000022）—— 每个站点独立配置
+	botStore := NewBotStore(pool)
+	if err := botStore.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("bot_challenges ensure schema failed", "err", err)
+	}
+	apiStore := NewAPIStore(pool)
+	if err := apiStore.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("api_endpoints ensure schema failed", "err", err)
+	}
+	botH := NewBotHandler(botStore)
+	apiH := NewAPIHandler(apiStore)
+	r.Route("/policy/sites/{siteId}", func(r chi.Router) {
+		r.Get("/bot-challenges", botH.List)
+		r.Put("/bot-challenges/{challenge}", botH.Put)
+		r.Get("/api-endpoints", apiH.List)
+		r.Post("/api-endpoints", apiH.Create)
+		r.Get("/api-kpi", apiH.KPI)
+	})
+	r.Put("/policy/api-endpoints/{id}", apiH.Update)
+	r.Delete("/policy/api-endpoints/{id}", apiH.Delete)
+
 	h := NewHandler(repo)
 
 	r.Route("/policy-categories", func(r chi.Router) {
