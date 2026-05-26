@@ -37,6 +37,8 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 	r.Route("/policies", func(r chi.Router) {
 		r.Get("/", h.ListPolicies)
 		r.Post("/", h.CreatePolicy)
+		// 试运行（无 id 也能调，编辑中尚未保存的规则也可试）
+		r.Post("/dry-run", h.DryRun)
 		r.Post("/sync-builtin", func(w http.ResponseWriter, req *http.Request) {
 			ins, upd, total, source, err := repo.SyncFromFS(req.Context())
 			if err != nil {
