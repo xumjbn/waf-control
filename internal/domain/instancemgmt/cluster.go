@@ -3,6 +3,7 @@ package instancemgmt
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/pkg/httputil"
 )
 
 // Cluster matches mocks/nebula.ts shape: id/name/vip/algo/state/site_count + nodes.
@@ -71,35 +74,44 @@ func (s *ClusterStore) EnsureSchema(ctx context.Context) error {
 			return err
 		}
 	}
-	// 默认 4 个集群种子，已有 name 不覆盖。
-	_, err := s.pool.Exec(ctx, `
-		INSERT INTO clusters (name, vip, algo, state, site_count, description) VALUES
-			('CLU-WWW',    '10.0.1.100', 'round-robin', 'ok',   3, '官网主集群'),
-			('CLU-API',    '10.0.2.100', 'least-conn',  'ok',   4, 'API 网关集群'),
-			('CLU-MOBILE', '10.0.3.100', 'ip-hash',     'warn', 2, '移动端集群 · 降级中'),
-			('CLU-INNER',  '10.0.4.100', 'round-robin', 'ok',   3, '内网业务集群')
-		ON CONFLICT (name) DO NOTHING`)
-	return err
+	// 默认 4 个集群种子已下放到 migration 000009 —— 仅在初次 fresh DB 时插入一次。
+	// 之前在 EnsureSchema 里 ON CONFLICT DO NOTHING 每次重启都试图插，
+	// 用户删除『CLU-WWW』重启就回来，UX 反直觉。
+	return nil
 }
 
 const clusterCols = `id, name, vip, algo, state, site_count, description, created_at, updated_at`
 
 func (s *ClusterStore) List(ctx context.Context) ([]Cluster, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+clusterCols+` FROM clusters ORDER BY id`)
+	// 单 SQL 取所有集群 + 成员 node_id 数组 —— 消除之前每个 cluster 调一次 memberIDs
+	// 的 N+1 问题。COALESCE 保证空集群返回空数组而非 NULL。
+	rows, err := s.pool.Query(ctx, `
+		SELECT c.id, c.name, c.vip, c.algo, c.state, c.site_count, c.description,
+		       c.created_at, c.updated_at,
+		       COALESCE(
+		         (SELECT array_agg(cm.node_id ORDER BY cm.joined_at)
+		            FROM cluster_members cm WHERE cm.cluster_id = c.id),
+		         ARRAY[]::varchar[]
+		       ) AS node_ids
+		  FROM clusters c
+		 ORDER BY c.id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Cluster
+	out := []Cluster{}
 	for rows.Next() {
 		var c Cluster
+		var nodeIDs []string
 		if err := rows.Scan(&c.ID, &c.Name, &c.VIP, &c.Algo, &c.State,
-			&c.SiteCount, &c.Description, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			&c.SiteCount, &c.Description, &c.CreatedAt, &c.UpdatedAt, &nodeIDs); err != nil {
 			return nil, err
 		}
-		ids, _ := s.memberIDs(ctx, c.ID)
-		c.NodeIDs = ids
-		c.Nodes = len(ids)
+		c.NodeIDs = nodeIDs
+		if c.NodeIDs == nil {
+			c.NodeIDs = []string{}
+		}
+		c.Nodes = len(c.NodeIDs)
 		out = append(out, c)
 	}
 	return out, rows.Err()
@@ -128,12 +140,15 @@ func (s *ClusterStore) Get(ctx context.Context, id int64) (*Cluster, error) {
 	var c Cluster
 	if err := row.Scan(&c.ID, &c.Name, &c.VIP, &c.Algo, &c.State,
 		&c.SiteCount, &c.Description, &c.CreatedAt, &c.UpdatedAt); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	ids, _ := s.memberIDs(ctx, c.ID)
+	ids, mErr := s.memberIDs(ctx, c.ID)
+	if mErr != nil {
+		return nil, fmt.Errorf("cluster.Get memberIDs: %w", mErr)
+	}
 	c.NodeIDs = ids
 	c.Nodes = len(ids)
 	return &c, nil
@@ -148,12 +163,30 @@ func (s *ClusterStore) Create(ctx context.Context, c *Cluster) error {
 	).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 }
 
-func (s *ClusterStore) Update(ctx context.Context, c *Cluster) error {
+// ClusterPatch 指针字段：只有显式传入的字段才会被覆盖。空字符串等价于"清空"
+// 而不是"保持原值"——之前 `if patch.X != ""` 语义无法清空 description/vip。
+type ClusterPatch struct {
+	Name        *string
+	VIP         *string
+	Algo        *string
+	State       *string
+	SiteCount   *int
+	Description *string
+}
+
+func (s *ClusterStore) Update(ctx context.Context, id int64, p ClusterPatch) error {
+	// COALESCE($n, col) 让 NULL 表示不变；非 NULL（含空串）表示覆盖。
 	_, err := s.pool.Exec(ctx, `
-		UPDATE clusters SET name=$1, vip=$2, algo=$3, state=$4,
-		       site_count=$5, description=$6, updated_at=NOW()
-		 WHERE id=$7`,
-		c.Name, c.VIP, c.Algo, c.State, c.SiteCount, c.Description, c.ID)
+		UPDATE clusters
+		   SET name        = COALESCE($1, name),
+		       vip         = COALESCE($2, vip),
+		       algo        = COALESCE($3, algo),
+		       state       = COALESCE($4, state),
+		       site_count  = COALESCE($5, site_count),
+		       description = COALESCE($6, description),
+		       updated_at  = NOW()
+		 WHERE id = $7`,
+		p.Name, p.VIP, p.Algo, p.State, p.SiteCount, p.Description, id)
 	return err
 }
 
@@ -240,7 +273,9 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		c.State = "ok"
 	}
 	if err := h.store.Create(r.Context(), &c); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("cluster handler db error", "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"cluster": c})
@@ -257,34 +292,39 @@ func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "cluster not found"})
 		return
 	}
-	var patch Cluster
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	// 接受指针字段 patch —— 空串现在可以清空 description / vip
+	var body struct {
+		Name        *string `json:"name"`
+		VIP         *string `json:"vip"`
+		Algo        *string `json:"algo"`
+		State       *string `json:"state"`
+		SiteCount   *int    `json:"site_count"`
+		Description *string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
 		return
 	}
-	if patch.Name != "" {
-		existing.Name = patch.Name
-	}
-	if patch.VIP != "" {
-		existing.VIP = patch.VIP
-	}
-	if patch.Algo != "" {
-		existing.Algo = patch.Algo
-	}
-	if patch.State != "" {
-		existing.State = patch.State
-	}
-	if patch.SiteCount > 0 {
-		existing.SiteCount = patch.SiteCount
-	}
-	if patch.Description != "" {
-		existing.Description = patch.Description
-	}
-	if err := h.store.Update(r.Context(), existing); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	if err := h.store.Update(r.Context(), id, ClusterPatch{
+		Name:        body.Name,
+		VIP:         body.VIP,
+		Algo:        body.Algo,
+		State:       body.State,
+		SiteCount:   body.SiteCount,
+		Description: body.Description,
+	}); err != nil {
+		slog.Error("cluster handler db error", "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"cluster": existing})
+	// Update 走了 COALESCE patch，existing 已不准确，回拉最新
+	updated, gerr := h.store.Get(r.Context(), id)
+	if gerr != nil || updated == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"cluster": existing})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"cluster": updated})
 }
 
 func (h *ClusterHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -310,7 +350,9 @@ func (h *ClusterHandler) AssignNode(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "nodeId")
 	role := r.URL.Query().Get("role")
 	if err := h.store.AssignNode(r.Context(), cid, nodeID, role); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("cluster handler db error", "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -324,7 +366,9 @@ func (h *ClusterHandler) RemoveNode(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeID := chi.URLParam(r, "nodeId")
 	if err := h.store.RemoveNode(r.Context(), cid, nodeID); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("cluster handler db error", "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

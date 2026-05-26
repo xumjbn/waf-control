@@ -20,7 +20,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/pkg/httputil"
 )
 
 type InstanceConfig struct {
@@ -158,7 +161,9 @@ func (h *ConfigHandler) Put(w http.ResponseWriter, r *http.Request) {
 	// 从现有/默认 config 出发 patch
 	cur, err := h.store.Get(r.Context(), nodeID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("get instance config", "node_id", nodeID, "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	var body struct {
@@ -204,13 +209,24 @@ func (h *ConfigHandler) Put(w http.ResponseWriter, r *http.Request) {
 		cur.MaintenanceWindow = *body.MaintenanceWindow
 	}
 	if err := h.store.Upsert(r.Context(), cur); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		// Upsert 返回的是业务校验错误（role/cpu_soft_limit 等），消息可对用户暴露；
+		// 但若是底层 db 错误，Sanitize 也能识别。
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) || errors.Is(err, pgx.ErrNoRows) {
+			slog.Error("upsert instance config", "node_id", nodeID, "err", err)
+			status, msg := httputil.SanitizeDBError(err)
+			writeJSON(w, status, map[string]string{"error": msg})
+		} else {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		}
 		return
 	}
 	// 返回最新值
 	latest, err := h.store.Get(r.Context(), nodeID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("get instance config (after upsert)", "node_id", nodeID, "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	writeJSON(w, http.StatusOK, latest)

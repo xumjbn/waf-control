@@ -60,6 +60,8 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Logger)
 	r.Use(chimw.RealIP)
 	r.Use(cors.Handler(middleware.CORS()))
+	// 全局请求体上限 1MiB —— 防止恶意大 body 耗内存。业务负载远小于此。
+	r.Use(middleware.MaxBody(middleware.DefaultMaxBodyBytes))
 
 	userExtractor := func(ctx context.Context) *middleware.OplogUser {
 		claims := identity.GetClaimsFromContext(ctx)

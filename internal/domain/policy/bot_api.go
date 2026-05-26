@@ -26,7 +26,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/pkg/httputil"
 )
 
 // ---------- Bot 挑战模式 ----------
@@ -314,20 +317,42 @@ func (s *APIStore) KPI(ctx context.Context, siteID int64) (APIKPI, error) {
 		`SELECT COUNT(*) FROM api_endpoints WHERE site_id=$1`, siteID).Scan(&k.Registered); err != nil {
 		return k, err
 	}
-	// 三个 24h 统计：从 attack_logs 派生，tag 命名约定与 modsec 规则的 tag 一致。
-	// 容错：表/字段缺失时数字为 0，不要 fail-fast。
-	const since = "NOW() - INTERVAL '24 hours'"
+
+	// 三个 24h 统计：从 attack_logs 派生。
+	// 旧实现 `site=fmt.Sprintf("site-%d", siteID)` 完全错配 —— attack_logs.site
+	// 列存的是站点 name（agent 上报时传 site 字符串名），不是 "site-N" 这种 ID 格式，
+	// 导致计数永远为 0。修正：从 sites 表取真名，再按 name 计数。
+	var siteName string
+	if err := s.pool.QueryRow(ctx,
+		`SELECT name FROM sites WHERE id=$1`, siteID).Scan(&siteName); err != nil {
+		// 站点不存在或 db 出错 —— 计数维持 0，但记日志便于排查
+		if !errors.Is(err, pgx.ErrNoRows) {
+			slog.Warn("api kpi lookup site name", "site_id", siteID, "err", err)
+		}
+		return k, nil
+	}
+
 	tryCount := func(where string) int {
 		var n int
-		_ = s.pool.QueryRow(ctx,
-			fmt.Sprintf(`SELECT COUNT(*) FROM attack_logs WHERE occurred_at >= %s AND site=$1 AND %s`,
-				since, where),
-			fmt.Sprintf("site-%d", siteID)).Scan(&n)
+		// 只吞 pg『表/列缺失』错误（容忍 attack_logs 还未建立）；其他错误记 warn 便于排查
+		err := s.pool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM attack_logs
+			   WHERE occurred_at >= NOW() - INTERVAL '24 hours'
+			     AND site = $1 AND `+where,
+			siteName).Scan(&n)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && (pgErr.Code == "42P01" || pgErr.Code == "42703") {
+				return 0
+			}
+			slog.Warn("api kpi count", "site", siteName, "where", where, "err", err)
+		}
 		return n
 	}
 	k.UnauthorizedBlocks24h = tryCount("attack_type ILIKE '%unauth%'")
 	k.JWTReplayBlocks24h = tryCount("attack_type ILIKE '%jwt%replay%'")
-	k.SensitiveMasked24h = tryCount("attack_type ILIKE '%sensitive%' OR attack_type ILIKE '%pii%'")
+	k.SensitiveMasked24h = tryCount(
+		"(attack_type ILIKE '%sensitive%' OR attack_type ILIKE '%pii%')")
 	return k, nil
 }
 
@@ -392,7 +417,9 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.store.Update(r.Context(), id, patch)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("bot/api handler db error", "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -419,7 +446,9 @@ func (h *APIHandler) KPI(w http.ResponseWriter, r *http.Request) {
 	}
 	kpi, err := h.store.KPI(r.Context(), siteID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		slog.Error("bot/api handler db error", "err", err)
+		status, msg := httputil.SanitizeDBError(err)
+		writeJSON(w, status, map[string]string{"error": msg})
 		return
 	}
 	writeJSON(w, http.StatusOK, kpi)

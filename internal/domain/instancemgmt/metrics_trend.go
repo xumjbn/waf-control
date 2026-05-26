@@ -136,7 +136,7 @@ func (h *TrendHandler) GetTrend(w http.ResponseWriter, r *http.Request) {
 	}
 	if qerr != nil {
 		slog.Error("metrics trend query", "node_id", nodeID, "metric", metric, "err", qerr)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": qerr.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询失败"})
 		return
 	}
 

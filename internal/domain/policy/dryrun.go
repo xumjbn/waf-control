@@ -12,11 +12,20 @@ package policy
 // 响应：{ matched, time_ms, hit_fields: [...], action }
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+)
+
+// 安全上限 —— 防止恶意 regex / 巨大 value / 长 pattern 拖死服务。
+// Go 标准库 regexp 是 RE2 不会指数回溯，但 compile + match 仍然受 input 长度影响。
+const (
+	maxPatternLen = 1024            // 单条 match pattern 长度
+	maxValueLen   = 64 * 1024       // 单字段（uri/body/...）评估值长度
+	dryRunTimeout = 1 * time.Second // 整个 evalRule 必须在此内完成
 )
 
 // DryRunRule 试运行用的规则 spec —— 不需要完整 Policy，只要 field+match+action。
@@ -104,9 +113,16 @@ func extractField(req DryRunRequest, field string) []string {
 }
 
 // evalCondition 按 op 评估 value 是否匹配 pattern。
+// pattern 已经在 evalRule 截过长，value 这里再 cap 一次防御性截断。
 func evalCondition(value, op, pattern string) (bool, string) {
+	if len(value) > maxValueLen {
+		value = value[:maxValueLen]
+	}
 	switch strings.ToLower(op) {
 	case "regex", "rx":
+		if len(pattern) > maxPatternLen {
+			return false, "pattern 超长（最大 1024 字节）"
+		}
 		re, err := regexp.Compile(pattern)
 		if err != nil {
 			return false, "正则不合法: " + err.Error()
@@ -173,7 +189,10 @@ func (h *Handler) DryRun(w http.ResponseWriter, r *http.Request) {
 		Rule    DryRunRule    `json:"rule"`
 		Request DryRunRequest `json:"request"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	// MaxBody 中间件已经把 r.Body cap 在 1MiB，这里再硬截 256KiB 做防御
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256*1024))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
 		return
 	}
@@ -183,9 +202,28 @@ func (h *Handler) DryRun(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if len(body.Rule.Match) > maxPatternLen {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "rule.match 超长（最大 1024 字节）",
+		})
+		return
+	}
 	if body.Rule.Action == "" {
 		body.Rule.Action = "block"
 	}
-	result := evalRule(body.Rule, body.Request)
-	writeJSON(w, http.StatusOK, result)
+
+	// 整个评估必须在 dryRunTimeout 内完成；Go 标准 regexp 不直接接受 context，
+	// 但实测在 1s 内 RE2 + 64KB value 完全够用，超时基本只会在 cgo/异常情况下触发。
+	ctx, cancel := context.WithTimeout(r.Context(), dryRunTimeout)
+	defer cancel()
+	done := make(chan DryRunResult, 1)
+	go func() { done <- evalRule(body.Rule, body.Request) }()
+	select {
+	case res := <-done:
+		writeJSON(w, http.StatusOK, res)
+	case <-ctx.Done():
+		writeJSON(w, http.StatusRequestTimeout, map[string]string{
+			"error": "试运行超时（≤1s 限制）—— 正则或 value 过于复杂",
+		})
+	}
 }
