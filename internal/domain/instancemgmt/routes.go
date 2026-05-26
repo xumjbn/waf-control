@@ -38,6 +38,13 @@ func RegisterRoutesWithDB(r chi.Router, agentSvc *agent.Service, pool *pgxpool.P
 	r.Get("/instances/{nodeId}/config", cfgH.Get)
 	r.Put("/instances/{nodeId}/config", cfgH.Put)
 
+	// 时序指标趋势（cpu_percent / memory_percent / disk_percent / requests_per_second / ...）
+	// 数据源：heartbeats（cpu/mem/disk）+ monitor_metrics（rps/conn/...）
+	if agentSvc != nil {
+		trendH := NewTrendHandler(pool, agentSvc)
+		r.Get("/instances/{nodeId}/metrics-trend", trendH.GetTrend)
+	}
+
 	clusterStore := NewClusterStore(pool)
 	if err := clusterStore.EnsureSchema(context.Background()); err != nil {
 		slog.Warn("clusters ensure schema failed", "err", err)
