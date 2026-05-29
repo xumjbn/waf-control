@@ -60,6 +60,8 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Logger)
 	r.Use(chimw.RealIP)
 	r.Use(cors.Handler(middleware.CORS()))
+	// 全局请求体上限 1MiB —— 防止恶意大 body 耗内存。业务负载远小于此。
+	r.Use(middleware.MaxBody(middleware.DefaultMaxBodyBytes))
 
 	userExtractor := func(ctx context.Context) *middleware.OplogUser {
 		claims := identity.GetClaimsFromContext(ctx)
@@ -82,6 +84,9 @@ func (s *Server) setupRouter() {
 
 		r.Group(func(r chi.Router) {
 			r.Use(identity.AuthMiddleware(identitySvc))
+			// ScopeMiddleware 必须紧跟 Auth：从 project_user_roles 取当前用户能访问的
+			// project_id 集合，放进 ctx，让 sites/policies 这类 repository 按租户隔离。
+			r.Use(identity.ScopeMiddleware(s.pool))
 			device.RegisterRoutes(r, s.pool)
 			flow.RegisterRoutes(r, s.pool)
 			monitor.RegisterRoutes(r, s.pool)

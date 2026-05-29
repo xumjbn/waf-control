@@ -282,43 +282,43 @@ func (r *Repository) SyncFromFS(ctx context.Context) (int, int, int, string, err
 		return 0, 0, 0, source, err
 	}
 	inserted, updated := 0, 0
+	// 单条 INSERT ... ON CONFLICT 单 SQL —— 避免之前 SELECT-then-INSERT/UPDATE 的
+	// TOCTOU（两个并发同步触发唯一约束冲突）。
+	//
+	// 关于覆盖策略：同步只覆盖『modsec 规则真正来源的字段』
+	// （match_value/field/priority/category/severity/action），而**保留**用户在 UI
+	// 修改过的 name/description 和 is_enabled。这通过 ON CONFLICT 时显式列出
+	// 想覆盖的列实现。
 	for _, m := range rules {
-		var existingID int64
-		var existing bool
-		if err := r.pool.QueryRow(ctx,
-			`SELECT id FROM policies WHERE modsec_id = $1`, m.ModsecID,
-		).Scan(&existingID); err == nil {
-			existing = true
+		tag, err := r.pool.Exec(ctx, `
+			INSERT INTO policies
+				(name, severity, action, is_enabled, description,
+				 scope, field, match_value, priority, builtin, modsec_id, category)
+			VALUES ($1,$2,$3,TRUE,$4,$5,$6,$7,$8,TRUE,$9,$10)
+			ON CONFLICT (modsec_id) DO UPDATE
+			   SET severity     = EXCLUDED.severity,
+			       action       = EXCLUDED.action,
+			       scope        = EXCLUDED.scope,
+			       field        = EXCLUDED.field,
+			       match_value  = EXCLUDED.match_value,
+			       priority     = EXCLUDED.priority,
+			       category     = EXCLUDED.category,
+			       builtin      = TRUE,
+			       updated_at   = NOW()
+			 WHERE policies.modsec_id IS NOT NULL`,
+			m.Name, m.Severity, m.Action, m.Description,
+			"全部站点", m.Field, m.Match, m.Priority, m.ModsecID, m.Category)
+		if err != nil {
+			return inserted, updated, len(rules), source,
+				fmt.Errorf("upsert builtin %s: %w", m.ModsecID, err)
 		}
-
-		if existing {
-			_, err := r.pool.Exec(ctx, `
-				UPDATE policies
-				   SET name=$1, severity=$2, action=$3, description=$4,
-				       scope=$5, field=$6, match_value=$7, priority=$8,
-				       category=$9, builtin=TRUE, updated_at=NOW()
-				 WHERE id=$10`,
-				m.Name, m.Severity, m.Action, m.Description,
-				"全部站点", m.Field, m.Match, m.Priority, m.Category, existingID)
-			if err != nil {
-				return inserted, updated, len(rules), source,
-					fmt.Errorf("update builtin %s: %w", m.ModsecID, err)
-			}
-			updated++
-		} else {
-			_, err := r.pool.Exec(ctx, `
-				INSERT INTO policies
-					(name, severity, action, is_enabled, description,
-					 scope, field, match_value, priority, builtin, modsec_id, category)
-				VALUES ($1,$2,$3,TRUE,$4,$5,$6,$7,$8,TRUE,$9,$10)`,
-				m.Name, m.Severity, m.Action, m.Description,
-				"全部站点", m.Field, m.Match, m.Priority, m.ModsecID, m.Category)
-			if err != nil {
-				return inserted, updated, len(rules), source,
-					fmt.Errorf("insert builtin %s: %w", m.ModsecID, err)
-			}
-			inserted++
+		// pg upsert 没法区分 INSERT/UPDATE，但 RowsAffected 1 等于成功，
+		// 这里粗略按 'is the rule already there?' 计数 —— 不影响业务，只用于日志展示
+		if tag.RowsAffected() > 0 {
+			updated++ // 保守归 updated，启动期日志会显示『total=49 updated=49』
 		}
 	}
+	// inserted 这里没法精确给出（PG ON CONFLICT 不区分），统一记 updated。
+	// 真正『首次插入』的次数可以从 'INSERT 0 N' 的 N 减出，但代价大于价值。
 	return inserted, updated, len(rules), source, nil
 }

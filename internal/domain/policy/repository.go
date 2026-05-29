@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/domain/identity"
 )
 
 type Repository struct {
@@ -37,6 +39,9 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_policies_category ON policies(category)`,
 		// modsec_id 必须唯一（且允许 NULL —— 用户自建规则没有 modsec_id）
 		`CREATE UNIQUE INDEX IF NOT EXISTS uq_policies_modsec_id ON policies(modsec_id) WHERE modsec_id IS NOT NULL`,
+		// 多租户 scope（migration 000025）。已有行落 project_id=1。
+		`ALTER TABLE policies ADD COLUMN IF NOT EXISTS project_id BIGINT NOT NULL DEFAULT 1`,
+		`CREATE INDEX IF NOT EXISTS idx_policies_project ON policies(project_id)`,
 	}
 	for _, s := range stmts {
 		if _, err := r.pool.Exec(ctx, s); err != nil {
@@ -152,6 +157,18 @@ func (r *Repository) ListPolicies(ctx context.Context, p ListPolicyParams) ([]Po
 	var args []interface{}
 	argIdx := 1
 
+	// 多租户 scope —— 内置规则（builtin=true）跨项目共享，所以 OR 一下兜底
+	// 让所有用户都能看到内置 modsec 规则；用户自建规则严格按 project_id 过滤。
+	if scope := identity.ScopeFromContext(ctx); scope != nil && !scope.IsAdmin {
+		if len(scope.IDs) == 0 {
+			conditions = append(conditions, "COALESCE(builtin,false) = TRUE")
+		} else {
+			conditions = append(conditions,
+				fmt.Sprintf("(project_id = ANY($%d::bigint[]) OR COALESCE(builtin,false) = TRUE)", argIdx))
+			args = append(args, scope.IDs)
+			argIdx++
+		}
+	}
 	if p.CategoryID != nil {
 		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argIdx))
 		args = append(args, *p.CategoryID)

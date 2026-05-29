@@ -51,7 +51,13 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 
 	dbID, err := s.upsertNode(ctx, req)
 	if err != nil {
-		slog.Error("upsert node failed", "error", err)
+		// 不能写库 → 拒绝注册，让 agent 端走重连退避；之前『静默 dbID=0 + 继续注册』
+		// 会导致后续 heartbeat 走 lookupNodeID 兜底分支或产生孤儿 heartbeats 行。
+		slog.Error("upsert node failed", "error", err, "node_id", req.NodeId)
+		return &pb.RegisterResponse{
+			Accepted: false,
+			Message:  "control database unavailable",
+		}, nil
 	}
 
 	s.mu.Lock()

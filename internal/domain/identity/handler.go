@@ -148,7 +148,9 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string "服务器内部错误"
 // @Router /identity/users [get]
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.svc.repo.ListUsers(r.Context())
+	// 改用 ListUsersWithRoles —— 一次拉用户 + 一次拉所有 user_role join，
+	// 消除原来 N+1 GetUserRoles 调用。
+	users, err := h.svc.repo.ListUsersWithRoles(r.Context())
 	if err != nil {
 		slog.Error("list users failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
@@ -157,8 +159,6 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]UserListItem, 0, len(users))
 	for i := range users {
-		roles, _ := h.svc.repo.GetUserRoles(r.Context(), users[i].ID)
-		users[i].Roles = roles
 		items = append(items, ToUserListItem(users[i]))
 	}
 
