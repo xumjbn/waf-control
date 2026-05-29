@@ -84,6 +84,57 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
+// ListUsersWithRoles 一次取所有 user + 全部 user_role 关联，handler 侧 group。
+// 取代 handler 里 `for user { GetUserRoles(uid) }` 的 N+1 模式。
+// 两条 SQL 共 O(U)+O(UR)，无论 user 数量多少都恒定开销。
+func (r *Repository) ListUsersWithRoles(ctx context.Context) ([]User, error) {
+	users, err := r.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		return users, nil
+	}
+	// 单条 JOIN 把 (user_id, role) 全部一次拉回。无 user_id 过滤 —— 用户量级
+	// 现实里 < 几百，全表 scan 配主键 join 比 IN(...) 更省 plan。
+	rows, err := r.pool.Query(ctx, `
+		SELECT ur.user_id,
+		       r.id, r.name, COALESCE(r.role_key,'') AS role_key,
+		       r.description, r.permissions,
+		       COALESCE(r.readonly,false) AS readonly,
+		       COALESCE(r.color,'') AS color,
+		       r.created_at, r.updated_at
+		  FROM user_roles ur
+		  JOIN roles r ON r.id = ur.role_id
+		 ORDER BY ur.user_id, r.id`)
+	if err != nil {
+		return nil, fmt.Errorf("list user_roles: %w", err)
+	}
+	defer rows.Close()
+	byUser := map[int64][]Role{}
+	for rows.Next() {
+		var uid int64
+		var role Role
+		var permsJSON []byte
+		if err := rows.Scan(&uid, &role.ID, &role.Name, &role.RoleKey,
+			&role.Description, &permsJSON, &role.Readonly, &role.Color,
+			&role.CreatedAt, &role.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan user_role: %w", err)
+		}
+		if err := unmarshalPermissions(permsJSON, &role.Permissions); err != nil {
+			return nil, err
+		}
+		byUser[uid] = append(byUser[uid], role)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range users {
+		users[i].Roles = byUser[users[i].ID]
+	}
+	return users, nil
+}
+
 type UserEnriched struct {
 	User
 	RoleName    *string

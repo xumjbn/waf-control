@@ -59,6 +59,12 @@ func main() {
 	}
 	if pool != nil {
 		defer pool.Close()
+		// 启动期跑 SQL migration（带 baseline 兜底，对已用 EnsureSchema 出来的旧库不会重跑）。
+		// 失败必须 fail-closed —— schema 不一致继续启动只会让 handler 后续 500 反复刷错。
+		if err := store.MigrateUp(ctx, pool); err != nil {
+			slog.Error("migration failed", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	var grpcSrv *agent.Server
