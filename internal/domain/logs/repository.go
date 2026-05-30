@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/waf-control/internal/domain/identity"
 )
 
 type Repository struct {
@@ -33,6 +35,15 @@ func (r *Repository) AttackTrend(ctx context.Context, hours int, site, ruleID st
 	conds := []string{fmt.Sprintf("occurred_at >= NOW() - INTERVAL '%d hours'", hours)}
 	args := []any{}
 	idx := 1
+	// 多租户 scope —— 非 admin 只统计自己 project 的攻击。
+	if scope := identity.ScopeFromContext(ctx); scope != nil && !scope.IsAdmin {
+		if len(scope.IDs) == 0 {
+			return []TrendPoint{}, nil
+		}
+		conds = append(conds, fmt.Sprintf("project_id = ANY($%d::bigint[])", idx))
+		args = append(args, scope.IDs)
+		idx++
+	}
 	if site != "" {
 		conds = append(conds, fmt.Sprintf("site = $%d", idx))
 		args = append(args, site)
@@ -92,6 +103,9 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_attack_logs_site    ON attack_logs(site)`,
 		`CREATE INDEX IF NOT EXISTS idx_attack_logs_country ON attack_logs(country)`,
 		`CREATE INDEX IF NOT EXISTS idx_attack_logs_risk    ON attack_logs(risk)`,
+		// 多租户 scope（migration 000027）—— 幂等兜底。现有行落 project_id=1。
+		`ALTER TABLE attack_logs ADD COLUMN IF NOT EXISTS project_id BIGINT NOT NULL DEFAULT 1`,
+		`CREATE INDEX IF NOT EXISTS idx_attack_logs_project ON attack_logs(project_id)`,
 	}
 	for _, s := range stmts {
 		if _, err := r.pool.Exec(ctx, s); err != nil {
@@ -122,6 +136,20 @@ func scanAttackLog(rs interface {
 
 func (r *Repository) ListAttackLogs(ctx context.Context, q LogQuery) ([]AttackLog, int64, error) {
 	where, args := buildWhere(q)
+
+	// 多租户 scope —— 仅 attack_logs 有 project_id（不污染共享 buildWhere）。
+	if scope := identity.ScopeFromContext(ctx); scope != nil && !scope.IsAdmin {
+		if len(scope.IDs) == 0 {
+			return []AttackLog{}, 0, nil
+		}
+		args = append(args, scope.IDs)
+		cond := fmt.Sprintf("project_id = ANY($%d::bigint[])", len(args))
+		if where == "" {
+			where = " WHERE " + cond
+		} else {
+			where += " AND " + cond
+		}
+	}
 
 	var total int64
 	countQuery := "SELECT COUNT(*) FROM attack_logs" + where
