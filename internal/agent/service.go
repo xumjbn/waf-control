@@ -229,8 +229,26 @@ func (s *Service) PushConfig(req *pb.ConfigRequest, stream pb.AgentService_PushC
 	}
 }
 
+// ReportMetrics 是 Heartbeat 之外的备用指标上报通道（agent 可批量推自定义指标）。
+// 之前只回 Ack 不落库；现在把指标真写进 monitor_metrics，与 Heartbeat 的
+// persistMetrics 同表，dashboard / 集群资源聚合自动消费。
 func (s *Service) ReportMetrics(ctx context.Context, req *pb.MetricsRequest) (*pb.MetricsResponse, error) {
 	slog.Debug("metrics received", "node_id", req.NodeId, "count", len(req.Metrics))
+	dbID, err := s.lookupNodeID(ctx, req.NodeId)
+	if err != nil {
+		// 未知节点：不落库但仍 Ack，避免 agent 重试风暴。
+		return &pb.MetricsResponse{Ack: true}, nil
+	}
+	for _, m := range req.Metrics {
+		if m == nil || m.Name == "" {
+			continue
+		}
+		if _, err := s.pool.Exec(ctx,
+			`INSERT INTO monitor_metrics (name, value, unit, node_id, recorded_at)
+			 VALUES ($1, $2, '', $3, NOW())`, m.Name, m.Value, dbID); err != nil {
+			slog.Debug("persist reported metric failed", "metric", m.Name, "error", err)
+		}
+	}
 	return &pb.MetricsResponse{Ack: true}, nil
 }
 
