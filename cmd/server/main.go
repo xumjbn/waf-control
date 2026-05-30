@@ -12,6 +12,8 @@ import (
 
 	"github.com/waf-control/internal/agent"
 	"github.com/waf-control/internal/config"
+	"github.com/waf-control/internal/domain/reports"
+	"github.com/waf-control/internal/scheduler"
 	"github.com/waf-control/internal/server"
 	"github.com/waf-control/internal/store"
 
@@ -77,6 +79,22 @@ func main() {
 		}()
 	}
 
+	// 后台定时调度器：每分钟扫 report_timing.cron，到点触发报表生成 + 回写时间戳。
+	// schedCtx 独立于启动用的 10s ctx，随进程退出取消。
+	var schedCancel context.CancelFunc
+	if pool != nil {
+		var schedCtx context.Context
+		schedCtx, schedCancel = context.WithCancel(context.Background())
+		sched := scheduler.New(pool)
+		gen := reports.NewGenerator(pool)
+		sched.OnReportDue = func(c context.Context, reportID int64) {
+			if err := gen.GenerateTiming(c, reportID); err != nil {
+				slog.Error("scheduled report generation failed", "id", reportID, "error", err)
+			}
+		}
+		go sched.Start(schedCtx)
+	}
+
 	srv := server.New(cfg, pool, grpcSrv)
 
 	httpServer := &http.Server{
@@ -100,6 +118,9 @@ func main() {
 	<-quit
 
 	slog.Info("shutting down server")
+	if schedCancel != nil {
+		schedCancel()
+	}
 	if grpcSrv != nil {
 		grpcSrv.Stop()
 	}

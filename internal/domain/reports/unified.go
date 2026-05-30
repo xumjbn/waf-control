@@ -2,7 +2,6 @@ package reports
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -126,6 +125,7 @@ func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 }
 
 // RunReport POST /reports/{type}/{id}/run
+// 真生成：把窗口内攻击日志聚合成 CSV 产物落 report_outputs，并 MarkRun 记录时间。
 func (h *Handler) RunReport(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "type")
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -133,21 +133,24 @@ func (h *Handler) RunReport(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
 		return
 	}
-	if err := h.repo.MarkRun(r.Context(), kind, id); err != nil {
-		writeJSONErr(w, http.StatusBadRequest, err)
+	out, gerr := h.gen.Generate(r.Context(), kind, id)
+	if gerr != nil {
+		writeJSONErr(w, http.StatusInternalServerError, gerr)
 		return
 	}
+	_ = h.repo.MarkRun(r.Context(), kind, id) // 时间戳记录失败不阻断生成结果
 	writeJSON(w, http.StatusAccepted, map[string]any{
 		"type":      kind,
 		"id":        id,
-		"status":    "queued",
+		"status":    "generated",
+		"filename":  out.Filename,
+		"row_count": out.RowCount,
 		"queued_at": time.Now(),
 	})
 }
 
 // DownloadReport GET /reports/{type}/{id}/download
-// 占位实现：返回 application/json 形式的 ReportData snapshot。
-// 真实 PDF/CSV 渲染由后端 worker 完成，前端目前用浏览器下载 JSON 即可。
+// 服务最近一次生成的 CSV 产物；无产物则即时生成一份再返回。
 func (h *Handler) DownloadReport(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "type")
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -155,18 +158,19 @@ func (h *Handler) DownloadReport(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
 		return
 	}
-	data := ReportData{
-		Columns: []string{"指标", "值"},
-		Rows: [][]interface{}{
-			{"报表类型", kind},
-			{"报表ID", id},
-			{"生成时间", time.Now().Format(time.RFC3339)},
-		},
+	out, _ := h.gen.LatestOutput(r.Context(), kind, id)
+	if out == nil {
+		generated, gerr := h.gen.Generate(r.Context(), kind, id)
+		if gerr != nil {
+			writeJSONErr(w, http.StatusInternalServerError, gerr)
+			return
+		}
+		out = generated
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition",
-		fmt.Sprintf(`attachment; filename="report-%s-%d.json"`, kind, id))
-	_ = json.NewEncoder(w).Encode(data)
+		fmt.Sprintf(`attachment; filename="%s"`, out.Filename))
+	_, _ = w.Write([]byte(out.Content))
 }
 
 func writeJSONErr(w http.ResponseWriter, code int, err error) {

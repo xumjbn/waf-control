@@ -11,10 +11,11 @@ import (
 
 type Handler struct {
 	repo *Repository
+	gen  *Generator
 }
 
 func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+	return &Handler{repo: repo, gen: NewGenerator(repo.pool)}
 }
 
 // --- Custom Reports ---

@@ -14,6 +14,9 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 		slog.Warn("reports ensure schema failed", "error", err)
 	}
 	h := NewHandler(repo)
+	if err := h.gen.EnsureSchema(context.Background()); err != nil {
+		slog.Warn("report_outputs ensure schema failed", "error", err)
+	}
 
 	r.Route("/reports", func(r chi.Router) {
 		// 统一列表 + 执行 + 下载（NW · 08 报表中心首页消费）

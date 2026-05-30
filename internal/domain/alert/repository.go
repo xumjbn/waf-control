@@ -403,21 +403,17 @@ func (r *Repository) DeleteChannel(ctx context.Context, id int64) error {
 	return nil
 }
 
-// TestChannel 触发一次"测试发送"占位实现：写一条 INFO 级 alert_events 记录指向此 channel。
-// 真实的 SMTP/webhook 调用由 reporter/notifier 后台 worker 异步触发；这里只确认"工单已创建"。
-func (r *Repository) TestChannel(ctx context.Context, id int64) (*Event, error) {
-	ch, err := r.GetChannel(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+// RecordTestEvent 写一条 INFO 级 alert_events 审计记录（投递结果 status 写进 message）。
+// 真实投递由 alert.Send 完成；这里只留痕。
+func (r *Repository) RecordTestEvent(ctx context.Context, ch *Channel, result string) (*Event, error) {
 	row := r.pool.QueryRow(ctx, `INSERT INTO alert_events
 		(policy_id, level, kind, target, message, status, occurred_at)
 		VALUES (NULL, 'info', $1, $2, $3, 'open', NOW())
 		RETURNING `+eventCols,
-		ch.Kind, ch.Target, fmt.Sprintf("【测试】渠道 %s 联通性自检", ch.Name))
+		ch.Kind, ch.Target, fmt.Sprintf("【测试】渠道 %s —— %s", ch.Name, result))
 	ev, err := scanEvent(row)
 	if err != nil {
-		return nil, fmt.Errorf("test channel: %w", err)
+		return nil, fmt.Errorf("record test event: %w", err)
 	}
 	return &ev, nil
 }

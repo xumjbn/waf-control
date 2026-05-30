@@ -2,9 +2,11 @@ package alert
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -210,21 +212,45 @@ func (h *Handler) DeleteChannel(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
-// TestChannel 发送一条 INFO 级别测试事件到该 channel（占位实现）。
-// POST /alert/channels/{id}/test
+// TestChannel 真实投递一条测试告警到该 channel（webhook/钉钉/企微 POST、邮件 SMTP），
+// 并记录一条 INFO 事件作为审计。POST /alert/channels/{id}/test
 func (h *Handler) TestChannel(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
 		return
 	}
-	ev, err := h.repo.TestChannel(r.Context(), id)
-	if err != nil {
-		slog.Error("test alert channel failed", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+	ch, err := h.repo.GetChannel(r.Context(), id)
+	if err != nil || ch == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "channel not found"})
 		return
 	}
-	writeJSON(w, http.StatusAccepted, ev)
+
+	subject := fmt.Sprintf("【OpenWAF 测试】渠道「%s」联通性自检", ch.Name)
+	body := fmt.Sprintf("这是一条来自 OpenWAF 的测试告警。\n渠道类型：%s\n时间：%s",
+		ch.Kind, time.Now().Format("2006-01-02 15:04:05"))
+
+	// 真实投递。失败把原因回前端，让运维能据此修配置。
+	sendErr := Send(r.Context(), ch, "info", subject, body)
+
+	// 无论成败都记一条审计事件（成败写进 message）。
+	status := "已投递"
+	if sendErr != nil {
+		status = "投递失败：" + sendErr.Error()
+	}
+	_, _ = h.repo.RecordTestEvent(r.Context(), ch, status)
+
+	if sendErr != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("测试投递失败：%s", sendErr.Error()),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": fmt.Sprintf("已通过「%s」发送测试告警", ch.Name),
+		"kind":    ch.Kind,
+		"target":  ch.Target,
+	})
 }
 
 func (h *Handler) UpdateChannel(w http.ResponseWriter, r *http.Request) {
