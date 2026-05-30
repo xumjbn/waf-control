@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -18,6 +19,14 @@ type Server struct {
 
 func NewServer(pool *pgxpool.Pool, port int) *Server {
 	svc := NewService(pool)
+	// 兜底 nodes.engine 列（migration 000028）—— baseline 路径下迁移被标记跳过，
+	// 这里幂等补列，避免 Register upsertNode 因缺列报 42703。
+	if pool != nil {
+		if _, err := pool.Exec(context.Background(),
+			`ALTER TABLE nodes ADD COLUMN IF NOT EXISTS engine VARCHAR(16) NOT NULL DEFAULT 'nginx'`); err != nil {
+			slog.Warn("ensure nodes.engine column failed", "error", err)
+		}
+	}
 	grpcSrv := grpc.NewServer()
 	pb.RegisterAgentServiceServer(grpcSrv, svc)
 

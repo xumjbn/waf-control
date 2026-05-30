@@ -28,6 +28,7 @@ type NodeState struct {
 	Hostname  string
 	IP        string
 	Version   string
+	Engine    string // 后端引擎类型：nginx / openresty / safeline（注册 labels 上报）
 	LastSeen  time.Time
 	Status    pb.NodeStatus_State
 	Resources *pb.ResourceUsage
@@ -50,7 +51,14 @@ func NewService(pool *pgxpool.Pool) *Service {
 func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	slog.Info("agent register", "node_id", req.NodeId, "hostname", req.Hostname, "ip", req.IpAddress)
 
-	dbID, err := s.upsertNode(ctx, req)
+	engine := "nginx"
+	if req.Labels != nil {
+		if e := req.Labels["engine"]; e != "" {
+			engine = e
+		}
+	}
+
+	dbID, err := s.upsertNode(ctx, req, engine)
 	if err != nil {
 		// 不能写库 → 拒绝注册，让 agent 端走重连退避；之前『静默 dbID=0 + 继续注册』
 		// 会导致后续 heartbeat 走 lookupNodeID 兜底分支或产生孤儿 heartbeats 行。
@@ -67,6 +75,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		Hostname: req.Hostname,
 		IP:       req.IpAddress,
 		Version:  req.Version,
+		Engine:   engine,
 		LastSeen: time.Now(),
 		Status:   pb.NodeStatus_HEALTHY,
 		DBNodeID: dbID,
@@ -89,25 +98,26 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	}, nil
 }
 
-func (s *Service) upsertNode(ctx context.Context, req *pb.RegisterRequest) (int64, error) {
+func (s *Service) upsertNode(ctx context.Context, req *pb.RegisterRequest, engine string) (int64, error) {
 	var id int64
 	err := s.pool.QueryRow(ctx, `
 		UPDATE nodes
 		SET ip_address = $2,
 		    status = 'online',
 		    agent_ver = COALESCE(NULLIF($3,''), agent_ver),
+		    engine = COALESCE(NULLIF($4,''), engine),
 		    last_seen = NOW(),
 		    updated_at = NOW()
 		WHERE hostname = $1 OR name = $1
-		RETURNING id`, req.Hostname, req.IpAddress, req.Version).Scan(&id)
+		RETURNING id`, req.Hostname, req.IpAddress, req.Version, engine).Scan(&id)
 	if err == nil && id > 0 {
 		return id, nil
 	}
 
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO nodes (name, hostname, ip_address, status, agent_ver, last_seen)
-		VALUES ($1, $1, $2, 'online', $3, NOW())
-		RETURNING id`, req.Hostname, req.IpAddress, req.Version).Scan(&id)
+		INSERT INTO nodes (name, hostname, ip_address, status, agent_ver, engine, last_seen)
+		VALUES ($1, $1, $2, 'online', $3, $4, NOW())
+		RETURNING id`, req.Hostname, req.IpAddress, req.Version, engine).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("upsert node: %w", err)
 	}

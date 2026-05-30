@@ -26,6 +26,7 @@ type InstanceInfo struct {
 	NetworkIO      string  `json:"network_io"`
 	MemoryTotal    int64   `json:"memory_total"`
 	DiskTotal      int64   `json:"disk_total"`
+	Engine         string  `json:"engine"` // nginx / openresty / safeline
 	LastSeen       string  `json:"last_seen"`
 }
 
@@ -71,6 +72,10 @@ func (h *Handler) GetInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildInstanceInfo(ns agent.NodeState) InstanceInfo {
+	engine := ns.Engine
+	if engine == "" {
+		engine = "nginx"
+	}
 	info := InstanceInfo{
 		NodeID:   ns.NodeID,
 		ID:       ns.NodeID,
@@ -78,6 +83,7 @@ func buildInstanceInfo(ns agent.NodeState) InstanceInfo {
 		Name:     ns.Hostname,
 		IP:       ns.IP,
 		Version:  ns.Version,
+		Engine:   engine,
 		Status:   mapStatus(ns),
 		LastSeen: ns.LastSeen.Format(time.RFC3339),
 	}
