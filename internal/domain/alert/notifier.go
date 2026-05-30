@@ -25,12 +25,13 @@ import (
 )
 
 type channelConfig struct {
-	URL      string `json:"url"`
-	SMTPHost string `json:"smtp_host"`
-	SMTPPort string `json:"smtp_port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	From     string `json:"from"`
+	URL        string `json:"url"`
+	SMTPHost   string `json:"smtp_host"`
+	SMTPPort   string `json:"smtp_port"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	From       string `json:"from"`
+	RoutingKey string `json:"routing_key"` // PagerDuty Events API v2
 }
 
 func parseChannelConfig(raw json.RawMessage) channelConfig {
@@ -69,11 +70,46 @@ func Send(ctx context.Context, ch *Channel, level, subject, body string) error {
 		})
 	case ChannelKindEmail:
 		return sendEmail(cfg, ch.Target, subject, body)
-	case ChannelKindPagerDuty, ChannelKindSMS:
-		return fmt.Errorf("%s 渠道投递暂未实现（需接入对应服务商 SDK）", ch.Kind)
+	case ChannelKindPagerDuty:
+		// PagerDuty Events API v2：POST 到 events.pagerduty.com，无需 SDK。
+		// routing key 取 config.routing_key 或 target。
+		routingKey := cfg.RoutingKey
+		if routingKey == "" {
+			routingKey = ch.Target
+		}
+		return sendPagerDuty(ctx, routingKey, level, subject, body)
+	case ChannelKindSMS:
+		// 短信需对接服务商（阿里云/腾讯云/Twilio）的签名鉴权，凭证模型各异。
+		// 未配置具体 provider 凭证前明确返回未实现，不假装成功。
+		return fmt.Errorf("短信渠道需配置 provider 凭证（阿里云/腾讯云/Twilio），暂未接入")
 	default:
 		return fmt.Errorf("未知渠道类型：%s", ch.Kind)
 	}
+}
+
+// sendPagerDuty 触发一条 PagerDuty 告警事件（Events API v2 trigger）。
+func sendPagerDuty(ctx context.Context, routingKey, level, subject, body string) error {
+	if routingKey == "" {
+		return fmt.Errorf("PagerDuty 渠道未配置 routing_key（config.routing_key / target）")
+	}
+	severity := "warning"
+	switch level {
+	case "critical", "crit":
+		severity = "critical"
+	case "info":
+		severity = "info"
+	}
+	payload := map[string]any{
+		"routing_key":  routingKey,
+		"event_action": "trigger",
+		"payload": map[string]any{
+			"summary":   subject,
+			"source":    "OpenWAF",
+			"severity":  severity,
+			"custom_details": map[string]string{"detail": body},
+		},
+	}
+	return postJSON(ctx, "https://events.pagerduty.com/v2/enqueue", payload)
 }
 
 func postJSON(ctx context.Context, url string, payload any) error {
