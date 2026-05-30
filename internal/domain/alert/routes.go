@@ -29,6 +29,7 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 			r.Put("/{id}/status", h.UpdateEventStatus)
 			r.Post("/mark-all-read", h.MarkAllRead)
 			r.Get("/stats", h.Stats)
+			r.Get("/stats/hourly", h.StatsHourly) // 近 24h 按小时分布（监控大屏）
 		})
 
 		r.Route("/channels", func(r chi.Router) {

@@ -170,6 +170,17 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, stats)
 }
 
+// StatsHourly GET /alert/events/stats/hourly —— 近 24h 按小时告警分布。
+func (h *Handler) StatsHourly(w http.ResponseWriter, r *http.Request) {
+	buckets, err := h.repo.HourlyStats(r.Context())
+	if err != nil {
+		slog.Error("alert hourly stats failed", "error", err)
+		writeJSON(w, http.StatusOK, map[string]any{"buckets": []HourlyBucket{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"buckets": buckets})
+}
+
 func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 	channels, err := h.repo.ListChannels(r.Context())
 	if err != nil {

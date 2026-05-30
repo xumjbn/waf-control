@@ -279,6 +279,53 @@ func (r *Repository) EventStats(ctx context.Context) (EventStats, error) {
 	return s, nil
 }
 
+// HourlyBucket 是告警分布的单个小时桶。监控大屏「近 24h 告警分布」消费。
+type HourlyBucket struct {
+	Hour     int   `json:"hour"`     // 0-23（本地小时）
+	Total    int64 `json:"total"`
+	Critical int64 `json:"critical"`
+	Warning  int64 `json:"warning"`
+	Info     int64 `json:"info"`
+}
+
+// HourlyStats 返回近 24 小时按小时分桶的告警计数（缺失桶填 0），按时间正序。
+func (r *Repository) HourlyStats(ctx context.Context) ([]HourlyBucket, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT EXTRACT(HOUR FROM occurred_at)::INT AS hour,
+		       COUNT(*)::BIGINT AS total,
+		       COUNT(*) FILTER (WHERE level = 'critical')::BIGINT,
+		       COUNT(*) FILTER (WHERE level = 'warning' OR level = 'warn')::BIGINT,
+		       COUNT(*) FILTER (WHERE level = 'info')::BIGINT
+		  FROM alert_events
+		 WHERE occurred_at >= NOW() - INTERVAL '24 hours'
+		 GROUP BY hour`)
+	if err != nil {
+		return nil, fmt.Errorf("alert hourly stats: %w", err)
+	}
+	defer rows.Close()
+	byHour := map[int]HourlyBucket{}
+	for rows.Next() {
+		var b HourlyBucket
+		if err := rows.Scan(&b.Hour, &b.Total, &b.Critical, &b.Warning, &b.Info); err != nil {
+			return nil, fmt.Errorf("scan hourly bucket: %w", err)
+		}
+		byHour[b.Hour] = b
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// 输出 24 桶，缺失填 0。
+	out := make([]HourlyBucket, 24)
+	for h := 0; h < 24; h++ {
+		if b, ok := byHour[h]; ok {
+			out[h] = b
+		} else {
+			out[h] = HourlyBucket{Hour: h}
+		}
+	}
+	return out, nil
+}
+
 const channelCols = `id, name, kind, COALESCE(target,''), COALESCE(description,''),
 	COALESCE(severity,'warn'), COALESCE(config,'{}'::jsonb), is_enabled, created_at, updated_at`
 
