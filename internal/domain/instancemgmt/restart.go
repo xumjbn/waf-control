@@ -46,13 +46,18 @@ func (h *Handler) RestartInstance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("instance restart requested", "hostname", hostname)
-	// TODO(agent): plumb a gRPC ExecuteCommand("systemctl restart waf-agent")
-	// once the proto supports it. For now respond 202 so the SPA can show
-	// "重启已提交"。
+	// 通过 PushConfig 下行流真下发 restart_service 命令到 agent。
+	// agent 收到后优雅退出，由容器/systemd 重启 —— 在下次心跳前后状态自然反映。
+	if err := h.agentSvc.SendCommandToHost(hostname, "restart_service", "operator requested restart"); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "无法下发重启命令：" + err.Error(),
+		})
+		return
+	}
 	writeJSON(w, http.StatusAccepted, map[string]any{
 		"hostname": hostname,
-		"status":   "accepted",
-		"message":  "restart command queued; will reflect in next heartbeat",
+		"status":   "dispatched",
+		"message":  "重启命令已下发，agent 将在收到后重启",
 	})
 }
 

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -272,6 +273,47 @@ func (s *Service) BroadcastConfig(nodeID string, configType pb.ConfigUpdate_Conf
 			Timestamp: timestamppb.Now(),
 		},
 	}
+}
+
+// configTypeCommand 复用 PushConfig 下行流投递一次性命令。proto3 枚举开放，
+// 待 protoc regen 后可改为具名 pb.ConfigUpdate_COMMAND。见 agent.proto。
+const configTypeCommand = pb.ConfigUpdate_ConfigType(6)
+
+// AgentCommand 是下发给 agent 的一次性命令负载（JSON 编码进 ConfigUpdate.payload）。
+type AgentCommand struct {
+	CommandID string `json:"command_id"`
+	Command   string `json:"command"` // restart_service / reload_config / sync_rules
+	Reason    string `json:"reason,omitempty"`
+}
+
+// SendCommandToHost 按 hostname 找到已连接节点的 NodeID，通过 PushConfig 下行流
+// 投递一条命令。节点未连接返回错误（调用方据此回 404/409）。
+func (s *Service) SendCommandToHost(hostname, command, reason string) error {
+	s.mu.RLock()
+	var nodeID string
+	for id, ns := range s.nodes {
+		if ns.Hostname == hostname || ns.NodeID == hostname {
+			nodeID = id
+			break
+		}
+	}
+	s.mu.RUnlock()
+	if nodeID == "" {
+		return fmt.Errorf("node %q not connected", hostname)
+	}
+
+	cmd := AgentCommand{
+		CommandID: fmt.Sprintf("cmd-%d", time.Now().UnixNano()),
+		Command:   command,
+		Reason:    reason,
+	}
+	payload, err := json.Marshal(cmd)
+	if err != nil {
+		return fmt.Errorf("marshal command: %w", err)
+	}
+	slog.Info("dispatching agent command", "node_id", nodeID, "hostname", hostname, "command", command)
+	s.BroadcastConfig(nodeID, configTypeCommand, payload)
+	return nil
 }
 
 func (s *Service) persistLog(ctx context.Context, entry *pb.LogEntry) error {
