@@ -40,6 +40,7 @@ func registerWith(r chi.Router, pool *pgxpool.Pool, aclRepo *acl.Repository) {
 			r.Get("/", h.ListAttackLogs)
 			r.Post("/", h.IngestAttackLog) // 内部 / agent 上报
 			r.Get("/count", h.CountAttackLogs)
+			r.Get("/trend", h.AttackTrend) // 按小时分桶（可选 site/rule_id）
 			r.Delete("/", h.ClearAttackLogs)
 			r.Get("/{id}", h.GetAttackLog)
 			r.Get("/{id}/related", h.RelatedEvents)

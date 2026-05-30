@@ -27,6 +27,21 @@ func NewHandlerWithACL(repo *Repository, aclRepo *acl.Repository) *Handler {
 	return &Handler{repo: repo, acl: aclRepo}
 }
 
+// AttackTrend GET /logs/attack/trend?hours=24&site=X&rule_id=Y
+// 攻击日志按小时分桶，喂 RuleEdit 命中趋势 / site 详情趋势（替代前端 Math.random）。
+func (h *Handler) AttackTrend(w http.ResponseWriter, r *http.Request) {
+	hours, _ := strconv.Atoi(r.URL.Query().Get("hours"))
+	site := r.URL.Query().Get("site")
+	ruleID := r.URL.Query().Get("rule_id")
+	points, err := h.repo.AttackTrend(r.Context(), hours, site, ruleID)
+	if err != nil {
+		slog.Error("attack trend failed", "error", err)
+		writeJSON(w, http.StatusOK, map[string]any{"points": []TrendPoint{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"points": points})
+}
+
 // ListAttackLogs godoc
 // @Summary 获取攻击日志列表
 // @Description 分页查询攻击日志，支持按节点、时间范围筛选

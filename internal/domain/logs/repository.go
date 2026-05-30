@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -14,6 +15,61 @@ type Repository struct {
 
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
+}
+
+// TrendPoint 是攻击日志按小时分桶的一个点。
+type TrendPoint struct {
+	T     string `json:"t"`     // 桶起始时刻 RFC3339
+	Count int64  `json:"count"`
+}
+
+// AttackTrend 返回近 hours 小时按小时分桶的攻击计数。可选按 site / rule_id 过滤
+// —— 给 RuleEdit 命中趋势、site 详情趋势喂真数据（替代前端 Math.random）。
+// 缺失桶填 0，按时间正序返回。
+func (r *Repository) AttackTrend(ctx context.Context, hours int, site, ruleID string) ([]TrendPoint, error) {
+	if hours <= 0 || hours > 720 {
+		hours = 24
+	}
+	conds := []string{fmt.Sprintf("occurred_at >= NOW() - INTERVAL '%d hours'", hours)}
+	args := []any{}
+	idx := 1
+	if site != "" {
+		conds = append(conds, fmt.Sprintf("site = $%d", idx))
+		args = append(args, site)
+		idx++
+	}
+	if ruleID != "" {
+		conds = append(conds, fmt.Sprintf("rule_id = $%d", idx))
+		args = append(args, ruleID)
+		idx++
+	}
+	q := `SELECT date_trunc('hour', occurred_at) AS bucket, COUNT(*)::BIGINT
+		  FROM attack_logs WHERE ` + strings.Join(conds, " AND ") +
+		` GROUP BY bucket ORDER BY bucket`
+	rows, err := r.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("attack trend: %w", err)
+	}
+	defer rows.Close()
+	// 用 map 填充连续小时桶。
+	type bt struct {
+		t string
+		c int64
+	}
+	var raw []bt
+	for rows.Next() {
+		var t time.Time
+		var c int64
+		if err := rows.Scan(&t, &c); err != nil {
+			return nil, fmt.Errorf("scan trend: %w", err)
+		}
+		raw = append(raw, bt{t: t.Format(time.RFC3339), c: c})
+	}
+	out := make([]TrendPoint, 0, len(raw))
+	for _, b := range raw {
+		out = append(out, TrendPoint{T: b.t, Count: b.c})
+	}
+	return out, nil
 }
 
 // EnsureSchema 在启动时幂等补齐 NW · 05 攻击日志所需的 UI 字段（migration 000011）。
