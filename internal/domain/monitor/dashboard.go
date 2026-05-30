@@ -41,6 +41,18 @@ type DashboardSnapshot struct {
 	GeneratedAt time.Time          `json:"generated_at"`
 }
 
+// ClusterResources 是集群资源水位聚合（监控大屏 Gauge + 真 QPS）。
+// 取每节点最近 5 分钟内的最新一条样本，cpu/mem/disk 求平均、连接/rps 求和。
+type ClusterResources struct {
+	CPUAvgPct      float64 `json:"cpu_avg_pct"`
+	MemAvgPct      float64 `json:"mem_avg_pct"`
+	DiskAvgPct     float64 `json:"disk_avg_pct"`
+	NetConnections int64   `json:"net_connections"`
+	RPS            float64 `json:"rps"` // 集群总 requests_per_second
+	NodeCount      int     `json:"node_count"`
+	GeneratedAt    time.Time `json:"generated_at"`
+}
+
 // RealtimePoint 是监控大屏一条时间桶（按分钟）。
 type RealtimePoint struct {
 	Bucket    time.Time `json:"bucket"`
@@ -179,7 +191,41 @@ func (r *Repository) RealtimeBuckets(ctx context.Context, minutes int) []Realtim
 	return out
 }
 
+// ClusterResourceSnapshot 取每节点近 5 分钟最新样本，聚合成集群水位。
+// 数据源是 agent 心跳写入的 monitor_metrics（cpu/memory/disk_percent、
+// net_connections、requests_per_second）。无样本时各项为 0。
+func (r *Repository) ClusterResourceSnapshot(ctx context.Context) ClusterResources {
+	out := ClusterResources{GeneratedAt: time.Now()}
+	// DISTINCT ON 取每 (node_id, name) 最新一条，再聚合。
+	err := r.pool.QueryRow(ctx, `
+		WITH latest AS (
+			SELECT DISTINCT ON (node_id, name) node_id, name, value
+			  FROM monitor_metrics
+			 WHERE recorded_at >= NOW() - INTERVAL '5 minutes'
+			 ORDER BY node_id, name, recorded_at DESC
+		)
+		SELECT
+			COALESCE(AVG(value) FILTER (WHERE name = 'cpu_percent'), 0),
+			COALESCE(AVG(value) FILTER (WHERE name = 'memory_percent'), 0),
+			COALESCE(AVG(value) FILTER (WHERE name = 'disk_percent'), 0),
+			COALESCE(SUM(value) FILTER (WHERE name = 'net_connections'), 0)::BIGINT,
+			COALESCE(SUM(value) FILTER (WHERE name = 'requests_per_second'), 0),
+			COUNT(DISTINCT node_id)
+		FROM latest`).
+		Scan(&out.CPUAvgPct, &out.MemAvgPct, &out.DiskAvgPct,
+			&out.NetConnections, &out.RPS, &out.NodeCount)
+	if err != nil {
+		return ClusterResources{GeneratedAt: time.Now()}
+	}
+	return out
+}
+
 // --- Handler ---
+
+// ClusterResourcesHandler GET /monitor/cluster-resources
+func (h *Handler) ClusterResourcesHandler(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.repo.ClusterResourceSnapshot(r.Context()))
+}
 
 // Dashboard GET /monitor/dashboard?window=24h|7d|30d
 // window 影响 TOP 威胁源 / 攻击类型分布的时间区间；KPI sparkline 固定 24h（语义如此），

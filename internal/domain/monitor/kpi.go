@@ -36,18 +36,20 @@ func (r *Repository) KPISnapshot(ctx context.Context) (*KPISnapshot, error) {
 		return nil, fmt.Errorf("kpi blocked: %w", err)
 	}
 
-	// 总请求量：metrics 表里的 total_requests 累积；缺失时按 blocked / 2.98% 反推（与 mock 一致）。
-	if err := r.pool.QueryRow(ctx, `SELECT COALESCE(SUM(value),0)::BIGINT FROM metrics
-		WHERE name = 'total_requests' AND recorded_at >= NOW() - INTERVAL '1 day'`).
+	// 总请求量：agent 上报的是 requests_per_second 速率样本（写入 monitor_metrics），
+	// 不是累积总量。用当日平均 rps × 86400 估算总请求；无样本时按 blocked / 2.98% 反推。
+	if err := r.pool.QueryRow(ctx, `SELECT COALESCE(AVG(value),0) * 86400 FROM monitor_metrics
+		WHERE name = 'requests_per_second' AND recorded_at >= NOW() - INTERVAL '1 day'`).
 		Scan(&out.TotalRequestsToday); err != nil {
-		// 表/列不存在视为 0
 		out.TotalRequestsToday = 0
 	}
 	if out.TotalRequestsToday == 0 && out.BlockedToday > 0 {
 		out.TotalRequestsToday = int64(float64(out.BlockedToday) / 0.0298)
 	}
 
-	if err := r.pool.QueryRow(ctx, `SELECT COALESCE(AVG(value),0) FROM metrics
+	// 延迟：agent 当前未采集（ResourceUsage 无延迟字段），暂无数据源 → 0。
+	// 等 agent 上报 latency_ms 后这里自动出数。
+	if err := r.pool.QueryRow(ctx, `SELECT COALESCE(AVG(value),0) FROM monitor_metrics
 		WHERE name = 'latency_ms' AND recorded_at >= NOW() - INTERVAL '1 day'`).
 		Scan(&out.AvgLatencyMs); err != nil {
 		out.AvgLatencyMs = 0
@@ -66,7 +68,8 @@ func (r *Repository) KPISnapshot(ctx context.Context) (*KPISnapshot, error) {
 	// 24 小时趋势 spark：按小时分桶，缺失桶填 0
 	out.SparkBlocked = r.bucketHourlyCount(ctx, "attack_logs", "occurred_at", "")
 	out.SparkAlerts = r.bucketHourlyCount(ctx, "alert_events", "occurred_at", "level = 'critical'")
-	out.SparkRequests = r.bucketHourlyMetric(ctx, "total_requests", true)
+	// 请求趋势：每小时平均 rps（agent 写入 monitor_metrics 的 requests_per_second）。
+	out.SparkRequests = r.bucketHourlyMetric(ctx, "requests_per_second", false)
 	out.SparkLatency = r.bucketHourlyMetricFloat(ctx, "latency_ms", false)
 	out.SparkBlockRate = r.computeBlockRateSeries(out.SparkBlocked, out.SparkRequests)
 
@@ -93,7 +96,7 @@ func (r *Repository) bucketHourlyMetric(ctx context.Context, name string, asSum 
 	}
 	q := fmt.Sprintf(`SELECT
 		date_trunc('hour', recorded_at) AS bucket, COALESCE(%s,0)::BIGINT
-		FROM metrics WHERE name = $1 AND recorded_at >= NOW() - INTERVAL '24 hours'
+		FROM monitor_metrics WHERE name = $1 AND recorded_at >= NOW() - INTERVAL '24 hours'
 		GROUP BY bucket ORDER BY bucket`, agg)
 	return r.runBucketCountWith(ctx, q, name)
 }
@@ -105,7 +108,7 @@ func (r *Repository) bucketHourlyMetricFloat(ctx context.Context, name string, a
 	}
 	q := fmt.Sprintf(`SELECT
 		date_trunc('hour', recorded_at) AS bucket, COALESCE(%s,0)
-		FROM metrics WHERE name = $1 AND recorded_at >= NOW() - INTERVAL '24 hours'
+		FROM monitor_metrics WHERE name = $1 AND recorded_at >= NOW() - INTERVAL '24 hours'
 		GROUP BY bucket ORDER BY bucket`, agg)
 	out := make([]float64, 24)
 	rows, err := r.pool.Query(ctx, q, name)
