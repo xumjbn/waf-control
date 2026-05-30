@@ -367,6 +367,17 @@ func (s *Service) GetConnectedNodes() []NodeState {
 	return nodes
 }
 
+// ConnectedHostnames 返回当前已连接节点的 hostname 列表（升级流程广播命令用）。
+func (s *Service) ConnectedHostnames() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]string, 0, len(s.nodes))
+	for _, ns := range s.nodes {
+		out = append(out, ns.Hostname)
+	}
+	return out
+}
+
 // ReportDeployResult handles deploy result reported back from an agent.
 func (s *Service) ReportDeployResult(ctx context.Context, req *pb.DeployResult) (*pb.DeployResultResponse, error) {
 	slog.Info("deploy result", "node", req.NodeId, "version", req.Version, "success", req.Success, "msg", req.Message)

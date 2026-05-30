@@ -101,7 +101,12 @@ func (s *Server) setupRouter() {
 			operate.RegisterRoutes(r, s.pool)
 			reports.RegisterRoutes(r, s.pool)
 			security.RegisterRoutes(r, s.pool)
-			system.RegisterRoutes(r, s.pool)
+			// 给升级流程注入集群命令下发能力（agent 在线时 rollout 阶段真 sync_rules）。
+			if s.agentSrv != nil {
+				system.RegisterRoutesWithFleet(r, s.pool, s.agentSrv.Service())
+			} else {
+				system.RegisterRoutes(r, s.pool)
+			}
 			// logs：注入 acl 仓库，启用 /logs/attack/{id}/ban、whitelist 联动
 			logs.RegisterRoutesWithACL(r, s.pool, acl.NewRepository(s.pool))
 

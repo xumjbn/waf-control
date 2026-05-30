@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -152,13 +153,40 @@ func (r *UpgradeTaskRepository) Finish(ctx context.Context, id int64, success bo
 
 // --- Handler ---
 
+// FleetCommander 是升级流程下发命令到 agent 集群的能力（由 agent.Service 实现）。
+// 用接口避免 system → agent 直接耦合。nil 时升级退化为纯进度模拟。
+type FleetCommander interface {
+	ConnectedHostnames() []string
+	SendCommandToHost(hostname, command, reason string) error
+}
+
 type UpgradeTaskHandler struct {
-	repo      *UpgradeTaskRepository
-	pkgRepo   *Repository
+	repo    *UpgradeTaskRepository
+	pkgRepo *Repository
+	fleet   FleetCommander // 可空
 }
 
 func NewUpgradeTaskHandler(repo *UpgradeTaskRepository, pkgRepo *Repository) *UpgradeTaskHandler {
 	return &UpgradeTaskHandler{repo: repo, pkgRepo: pkgRepo}
+}
+
+// SetFleet 注入集群命令下发能力，使升级在 rollout 阶段对在线节点做真实 sync_rules reload。
+func (h *UpgradeTaskHandler) SetFleet(f FleetCommander) {
+	h.fleet = f
+}
+
+// dispatchFleetSync 向所有在线节点广播 sync_rules（nginx reload），返回成功下发的节点数。
+func (h *UpgradeTaskHandler) dispatchFleetSync(reason string) int {
+	if h.fleet == nil {
+		return 0
+	}
+	n := 0
+	for _, host := range h.fleet.ConnectedHostnames() {
+		if err := h.fleet.SendCommandToHost(host, "sync_rules", reason); err == nil {
+			n++
+		}
+	}
+	return n
 }
 
 // Start POST /system/upgrades/{id}/start
@@ -177,7 +205,7 @@ func (h *UpgradeTaskHandler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 解耦：worker 用 context.Background，避免 HTTP request ctx cancel 中断升级流。
-	go h.runSimulatedUpgrade(context.Background(), task.ID, pkgID)
+	go h.runUpgrade(context.Background(), task.ID, pkgID)
 	writeJSON(w, http.StatusAccepted, task)
 }
 
@@ -202,8 +230,10 @@ func (h *UpgradeTaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, task)
 }
 
-// runSimulatedUpgrade 模拟 8 阶段升级流。生产替换为真实的部署调用（deploymgmt 或 agent gRPC）。
-func (h *UpgradeTaskHandler) runSimulatedUpgrade(ctx context.Context, taskID, pkgID int64) {
+// runUpgrade 驱动升级流程：8 阶段进度反馈 + 在 rollout 阶段对在线节点做真实
+// sync_rules（nginx reload）下发。镜像级自更新需部署管道（docker pull + recreate），
+// 不在 agent 进程能力内，故此处真实动作聚焦于配置/规则 reload。
+func (h *UpgradeTaskHandler) runUpgrade(ctx context.Context, taskID, pkgID int64) {
 	type step struct {
 		offset time.Duration
 		text   string
@@ -250,6 +280,16 @@ func (h *UpgradeTaskHandler) runSimulatedUpgrade(ctx context.Context, taskID, pk
 			slog.Error("upgrade task append log failed", "error", err, "task", taskID)
 			_ = h.repo.Finish(context.Background(), taskID, false, err.Error())
 			return
+		}
+		// 在批量滚动升级步真实下发 sync_rules 到在线节点（nginx reload）。
+		if strings.Contains(s.text, "批量滚动升级") {
+			n := h.dispatchFleetSync("system upgrade rollout")
+			real := UpgradeTaskLogLine{
+				T: int(s.offset.Milliseconds()) + 1,
+				L: fmt.Sprintf("    → 已向 %d 个在线节点下发 sync_rules（nginx reload）", n),
+				K: "ok",
+			}
+			_ = h.repo.AppendLog(context.Background(), taskID, real, progress)
 		}
 	}
 	// 把对应 package 标记为 current。失败只 log 不 fail 任务 —— 业务流真升级算成功。
