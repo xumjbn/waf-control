@@ -2,6 +2,7 @@ package reports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -171,6 +172,28 @@ func (h *Handler) DownloadReport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf(`attachment; filename="%s"`, out.Filename))
 	_, _ = w.Write([]byte(out.Content))
+}
+
+// SetTimingEnabled POST /reports/timing/{id}/enabled  body: {"enabled": bool}
+// 调度器只跑启用的定时报表，前端开关靠这里落库。
+func (h *Handler) SetTimingEnabled(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
+		return
+	}
+	if err := h.repo.SetTimingEnabled(r.Context(), id, body.Enabled); err != nil {
+		writeJSONErr(w, http.StatusNotFound, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "is_enabled": body.Enabled})
 }
 
 func writeJSONErr(w http.ResponseWriter, code int, err error) {

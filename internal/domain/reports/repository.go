@@ -247,6 +247,19 @@ func (r *Repository) DeleteTiming(ctx context.Context, id int64) error {
 	return nil
 }
 
+// SetTimingEnabled 切换定时报表启用状态。调度器只跑 is_enabled=true 的行。
+func (r *Repository) SetTimingEnabled(ctx context.Context, id int64, enabled bool) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE report_timing SET is_enabled = $2, updated_at = NOW() WHERE id = $1`, id, enabled)
+	if err != nil {
+		return fmt.Errorf("set timing enabled %d: %w", id, err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("timing report %d not found", id)
+	}
+	return nil
+}
+
 func (r *Repository) TimingReportData(ctx context.Context, id int64) (*ReportData, error) {
 	tr, err := r.GetTiming(ctx, id)
 	if err != nil {

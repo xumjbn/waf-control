@@ -52,6 +52,7 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool) {
 			r.Put("/{id}", h.UpdateTiming)
 			r.Delete("/{id}", h.DeleteTiming)
 			r.Get("/{id}/data", h.TimingReportData)
+			r.Post("/{id}/enabled", h.SetTimingEnabled) // 启用/停用（调度器据此跑）
 		})
 
 		// Manual reports

@@ -14,6 +14,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,6 +65,62 @@ func (s *Scheduler) tick(ctx context.Context) {
 		}
 	}()
 	s.runDueTimingReports(ctx)
+	s.runMaintenanceIntents(ctx)
+}
+
+// runMaintenanceIntents 消费系统设置里登记的"数据维护"意图（system/index.tsx DataTab
+// 写入 category='maintenance' 的 settings）。之前这些意图只被记录、没有消费者。
+//
+// 用 <key>__done 伴生设置记录"上次消费的意图值"，意图值变化即视为新触发，幂等。
+// 当前仅实现高价值的过期攻击日志清理，其余 key 暂忽略（不报错）。
+func (s *Scheduler) runMaintenanceIntents(ctx context.Context) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT key, value FROM system_settings WHERE category = 'maintenance'`)
+	if err != nil {
+		return // 表缺失等 → 跳过
+	}
+	intents := map[string]string{}
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err == nil {
+			intents[k] = v
+		}
+	}
+	rows.Close()
+
+	for key, val := range intents {
+		if strings.HasSuffix(key, "__done") {
+			continue
+		}
+		if intents[key+"__done"] == val {
+			continue // 该意图已消费过
+		}
+		if s.executeMaintenance(ctx, key) {
+			// 标记已消费：写 <key>__done = 当前意图值
+			_, _ = s.pool.Exec(ctx, `
+				INSERT INTO system_settings (key, value, category)
+				VALUES ($1, $2, 'maintenance')
+				ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+				key+"__done", val)
+		}
+	}
+}
+
+// executeMaintenance 执行一个维护意图，返回是否已处理（未识别的 key 返回 false 不标记）。
+func (s *Scheduler) executeMaintenance(ctx context.Context, key string) bool {
+	switch key {
+	case "maint_purge_attack_logs":
+		tag, err := s.pool.Exec(ctx,
+			`DELETE FROM attack_logs WHERE occurred_at < NOW() - INTERVAL '90 days'`)
+		if err != nil {
+			slog.Error("maintenance purge attack_logs failed", "error", err)
+			return false
+		}
+		slog.Info("maintenance: purged old attack_logs", "rows", tag.RowsAffected())
+		return true
+	default:
+		return false
+	}
 }
 
 // runDueTimingReports 扫启用的定时报表，cron 命中且本分钟未跑过 → 触发。
